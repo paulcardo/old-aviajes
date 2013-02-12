@@ -1,0 +1,46 @@
+Cristiano Trebian says
+EXEC sp_resetstatus 'yourDBname';
+ALTER DATABASE yourDBname SET EMERGENCY
+DBCC checkdb('yourDBname')
+
+ALTER DATABASE yourDBname SET SINGLE_USER WITH ROLLBACK IMMEDIATE
+DBCC CheckDB ('yourDBname', REPAIR_ALLOW_DATA_LOSS)
+ALTER DATABASE yourDBname SET MULTI_USER
+ahoa te explico... aun que toma todo el script y lo corre, si la sb es danada se para al tercer comando
+y te dice malas cosas, tipo bota a la basura todo
+Paul . says
+ok
+Cristiano Trebian says
+pero si sirbe te recupera todos los datos
+en el caso el disco esta danado como el caso de sbg
+te consejo
+correr los ultimos 3 comandos
+ALTER DATABASE yourDBname SET SINGLE_USER WITH ROLLBACK IMMEDIATE
+DBCC CheckDB ('yourDBname', REPAIR_ALLOW_DATA_LOSS)
+ALTER DATABASE yourDBname SET MULTI_USER
+
+uno por uno, para ver que dice
+es probable que la recupere, pero talvezs pierdas algo
+Paul . says
+ok, la cuestion es que no tengo acceso hoy a la DB, mannana ire 9am y ejecutare un o por uno
+Cristiano Trebian says
+luego, abra un prompt de dos
+y le da chkdsk /f (que hace el fix de los bad sector)
+Paul . says
+pero explicame, y mannana voy y lo hago directo
+Cristiano Trebian says
+luego dele un backup a la db, y luego corrala
+en el mientras no se tiene que hacer ninguna transacion
+Paul . says
+ok
+Cristiano Trebian says
+si no corre el chkdks que marca el/los sectors malos, como que corre la db otra vez se va a poner otra vez en mierda porque siempre tiene que tratar de usar el sector malo
+Paul . says
+ok de acuerdo
+Cristiano Trebian says
+el chkdsk te dira que el disco esta en lock asi que si quiere correrlo al proximo restart, le dice y le da restart
+7 horas me costo esta mierda porque no tenian un backup (porque no sirbe...)
+
+Cristiano Trebian says
+el mismo me paso... hize el brete, luego probe con un juego... se puso en suspect otra vez... y putie medio calendario... luego lo hice otra vez... corre el chkdsk luego del restart, me dio zero items, la otra mita del calendario siguio y luego repiti la procedura y ya
+
