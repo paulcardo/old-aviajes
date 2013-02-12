@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 title="Usuarios"
+		 creationComplete="init()"
+		 width="408" height="610">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[  
+			import com.adobe.cairngorm.control.CairngormEventDispatcher;
+			import com.adobe.cairngorm.project.event.UsuarioDetalleEvent;
+			import com.adobe.cairngorm.project.event.UsuarioDetalleUpdateEvent;
+			import com.adobe.cairngorm.project.event.UsuarioDetalleDeleteEvent;
+			import com.adobe.cairngorm.project.event.UsuariosEvent;
+			import com.adobe.cairngorm.project.model.Usuarios;
+			import com.adobe.cairngorm.project.model.ModelLocator;
+			import com.adobe.cairngorm.project.vo.*;
+			import mx.collections.ArrayCollection;
+			import mx.events.DataGridEvent;
+			
+			[Bindable]
+			public var model : ModelLocator = ModelLocator.getInstance();
+			
+			[Bindable]
+			public var esNuevo : Boolean = false;
+			
+			public function init() : void
+			{
+			}	
+				
+			public function usuariosSearch() : void
+			{
+				var usuariosVO : UsuariosVO = new UsuariosVO();
+				model.usuarios.usuariosVO = usuariosVO;
+				var event : UsuariosEvent = new UsuariosEvent( usuariosVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+			
+			private function selectUsuario():void
+			{
+				var i:int;
+				var usuarioDetalleVO : UsuarioDetalleVO = new UsuarioDetalleVO();
+				model.usuarioDetalle.usuarioDetalleVO = new UsuarioDetalleVO(); // reset
+				this.esNuevo = false;
+				if ( datagrid.selectedIndex > -1 ){
+					usuarioDetalleVO.usrId = datagrid.selectedItem.UsrId;
+					model.usuarioDetalle.usuarioDetalleVO = usuarioDetalleVO;
+					var event : UsuarioDetalleEvent = new UsuarioDetalleEvent( usuarioDetalleVO );
+					CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				}
+			}
+			
+			private function nuevoUsuario():void
+			{
+				var i:int;
+				this.esNuevo = true;
+				model.usuarioDetalle.usuarioDetalleVO = new UsuarioDetalleVO();
+			}
+			
+			private function updateUsuario():void
+			{
+				var usuarioDetalleVO : UsuarioDetalleVO = new UsuarioDetalleVO();
+				if ( this.esNuevo ){
+					usuarioDetalleVO.usrId = -1;
+				} else {
+					usuarioDetalleVO.usrId = datagrid.selectedItem.UsrId;
+				}
+				usuarioDetalleVO.nombre = txtDetalleNombre.text.toUpperCase();
+				
+				model.usuarioDetalle.usuarioDetalleVO = usuarioDetalleVO;
+				var event : UsuarioDetalleUpdateEvent = new UsuarioDetalleUpdateEvent( usuarioDetalleVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				this.esNuevo = false;
+			}
+
+			private function borrarUsuario():void
+			{
+				var event : UsuarioDetalleDeleteEvent = new UsuarioDetalleDeleteEvent( model.usuarioDetalle.usuarioDetalleVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				this.esNuevo = false;
+				model.usuarioDetalle.usuarioDetalleVO.usrId = 0;
+				model.usuarioDetalle.usuarioDetalleVO.nombre = '';
+			}
+			
+			// Re-sort the DataGrid control when the user clicks a header.
+			private function headRelEvt(event:DataGridEvent):void {
+				// Do Nothing
+				
+				// Prevent the DataGrid from doing a default column sort.
+				event.preventDefault();
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Button x="299" y="7" label="Buscar" width="90"
+			  click="usuariosSearch()"/>
+	
+	<s:DataGrid id="datagrid" x="10" y="6.35" width="273" height="462"
+				 verticalScrollPolicy="on"
+				 selectionChange="selectUsuario()"
+				 sortableColumns="false"
+				 alternatingRowColors="[#F7F7F7, white]"
+				 dataProvider="{model.usuarios.usuariosVO.datagridInfo}">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn headerText="Nombre" minWidth="250"
+								   dataField="Nombre"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+
+	<s:TextInput id="txtDetalleNombre" x="10" y="486" width="273"
+				 text="{model.usuarioDetalle.usuarioDetalleVO.nombre}"
+				 typographicCase="uppercase"/>
+	<s:Label x="10" y="476" text="Nombre"/>
+
+	<s:Button id="btnNuevo" x="299" y="482" width="90" label="Nuevo" 
+			  enabled="{!this.esNuevo}"
+			  click="nuevoUsuario()"/>
+	<s:Button id="btnBorrar" x="299" y="412" width="90" label="Borrar" 
+			  enabled="{!this.esNuevo}"
+			  click="borrarUsuario()"/>
+	<s:Button id="btnGuardar" x="299" y="512" width="90" label="Guardar" 
+			  click="updateUsuario()"/>
+	<s:Button id="btnCancelar" x="299" y="541" width="90" label="Cancelar" 
+			  click="selectUsuario()"/>
+</s:Panel>

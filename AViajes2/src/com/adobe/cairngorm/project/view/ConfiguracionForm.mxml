@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="1024" height="610">
+	<fx:Script>
+		<![CDATA[  
+			import com.adobe.cairngorm.control.CairngormEventDispatcher;
+			import com.adobe.cairngorm.project.event.CounterExpNumEvent;
+			import com.adobe.cairngorm.project.event.CounterExpNumUpdateEvent;
+			import com.adobe.cairngorm.project.event.ClaveAdministradorUpdateEvent;
+			import com.adobe.cairngorm.project.model.Counter;
+			import com.adobe.cairngorm.project.model.ModelLocator;
+			import com.adobe.cairngorm.project.vo.*;
+			import mx.controls.Alert;
+			
+			[Bindable]
+			public var model : ModelLocator = ModelLocator.getInstance();
+			
+			[Bindable]
+			public var esNuevo : Boolean = false;
+			
+			
+			public function counterSearch() : void
+			{
+				var counterVO : CounterVO = new CounterVO();
+				model.counter.counterVO = counterVO;
+				var event : CounterExpNumEvent = new CounterExpNumEvent( counterVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+			
+			private function updateCounter():void
+			{
+				var counterVO : CounterVO = new CounterVO();
+				counterVO.expNum = nsExpNum.value;
+				var event : CounterExpNumUpdateEvent = new CounterExpNumUpdateEvent( counterVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+			
+			private function updateClaveAdministrador():void
+			{
+				// verificar que la nueva Clave este escrita bien las 2 veces
+				if ( txtClaveNueva.text != txtClaveNueva2.text ){
+					Alert.show("La nueva clave debe ser escrita igual en ambos campos", "Alerta", Alert.OK);
+				} else {
+					var claveAdministradorVO : ClaveAdministradorVO = new ClaveAdministradorVO();
+					claveAdministradorVO.claveActual = txtClaveActual.text;
+					claveAdministradorVO.claveNueva = txtClaveNueva.text;
+					var event : ClaveAdministradorUpdateEvent = new ClaveAdministradorUpdateEvent( claveAdministradorVO );
+					CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<s:Panel width="228" height="142" 
+			 title="Configuracion"
+			 visible="false"
+			 creationComplete="counterSearch()" x="311" y="0">
+		<s:Label x="37" y="28" text="Expediente #"/>
+		<s:NumericStepper id="nsExpNum" x="122" y="20" width="71"
+						  stepSize="1"
+						  maximum="999"
+						  minimum="1"
+						  value="{model.counter.counterVO.expNum}"/>
+		<s:Button x="14" y="66" width="90" label="Guardar" 
+				  click="updateCounter()"/>
+		<s:Button x="124" y="66" width="90" label="Refrescar" 
+				  click="counterSearch()"/>
+	</s:Panel>
+	<s:Panel width="286" height="200" 
+			 title="Clave de Administrador"
+			 creationComplete="counterSearch()" x="0" y="0">
+		<s:Label x="10" y="28" width="140" 
+				 text="Clave Actual" textAlign="right"/>
+		<s:TextInput id="txtClaveActual" x="159" y="20" width="115"
+					 displayAsPassword="true"/>
+		<s:Label x="10" y="58" width="140" 
+				 text="Nueva Clave" textAlign="right"/>
+		<s:TextInput id="txtClaveNueva" x="159" y="50" width="115"
+					 displayAsPassword="true"/>
+		<s:Label x="10" y="88" width="140" 
+				 text="Confirmar Nueva Clave" textAlign="right"/>
+		<s:TextInput id="txtClaveNueva2" x="159" y="80" width="115"
+					 displayAsPassword="true"/>
+		<s:Button x="92" y="130" width="90" label="Guardar" 
+				  click="updateClaveAdministrador()"/>
+	</s:Panel>
+</s:Group>

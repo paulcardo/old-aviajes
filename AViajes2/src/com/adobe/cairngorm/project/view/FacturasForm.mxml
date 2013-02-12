@@ -1,0 +1,584 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 title="Facturas"
+		 creationComplete="init()"
+		 width="800" height="610">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[  
+			import com.adobe.cairngorm.control.CairngormEventDispatcher;
+			import com.adobe.cairngorm.project.event.AgenciasNombreEvent;
+			import com.adobe.cairngorm.project.event.CounterEvent;
+			import com.adobe.cairngorm.project.event.FacturaCostosEvent;
+			import com.adobe.cairngorm.project.event.FacturaDetalleEvent;
+			import com.adobe.cairngorm.project.event.FacturaDetalleUpdateEvent;
+			import com.adobe.cairngorm.project.event.FacturaDetalleImpresoUpdateEvent;
+			import com.adobe.cairngorm.project.event.FacturasEvent;
+			import com.adobe.cairngorm.project.model.FacturaDetalle;
+			import com.adobe.cairngorm.project.model.Facturas;
+			import com.adobe.cairngorm.project.model.ModelLocator;
+			import com.adobe.cairngorm.project.vo.*;
+			
+			import mx.collections.ArrayCollection;
+			import mx.managers.PopUpManager;
+			import mx.utils.ObjectUtil;
+			
+			import org.alivepdf.colors.RGBColor;
+			import org.alivepdf.display.Display;
+			import org.alivepdf.fonts.CoreFont;
+			import org.alivepdf.fonts.FontFamily;
+			import org.alivepdf.fonts.Style;
+			import org.alivepdf.images.ColorSpace;
+			import org.alivepdf.layout.Align;
+			import org.alivepdf.layout.Orientation;
+			import org.alivepdf.layout.Size;
+			import org.alivepdf.layout.Unit;
+			import org.alivepdf.pages.Page;
+			import org.alivepdf.pdf.PDF;
+			import org.alivepdf.saving.Download;
+			import org.alivepdf.saving.Method;
+			
+			protected var claimPDF:PDF;
+			
+			[Embed(source="assets/logo_empresaBN.jpg", mimeType="application/octet-stream" )]
+			protected var jpgBytes:Class;
+			
+			[Bindable]
+			public var model : ModelLocator = ModelLocator.getInstance();
+			
+			[Bindable]
+			public var expAnnoArray : ArrayCollection = new ArrayCollection;
+			[Bindable]
+			public var expAnnoDetalleArray : ArrayCollection = new ArrayCollection;
+			
+			public var Anno :int;
+			
+			public function init() : void
+			{
+				var i : int;
+				var today:Date= new Date();
+				
+				expAnnoArray.addItem('Todos');
+				// datos para combos Años
+				this.Anno = today.getFullYear();
+				for (i = this.Anno + 1; i > 2000; i--) {
+					expAnnoArray.addItem( i.toString() );
+					expAnnoDetalleArray.addItem( i.toString() );
+				}
+				cmbExpAnno.selectedIndex = 2;
+				//
+				tabNavigator.selectedIndex = 0;
+				
+				model.facturas.facturasVO  = new FacturasVO();// reset
+			}	
+				
+			public function facturasSearch() : void
+			{
+				var facturasVO : FacturasVO = new FacturasVO();
+				facturasVO.facNumId = txtFacNumId.text;
+				facturasVO.expAnno = cmbExpAnno.selectedItem;
+				facturasVO.expNum = txtExpNum.text;
+				facturasVO.agenciaNombre = txtAgencia.text;
+				facturasVO.paxNombre = txtPax.text;
+				facturasVO.expAnnoIndex = cmbExpAnno.selectedIndex;
+				model.facturas.facturasVO = facturasVO;
+				var event : FacturasEvent = new FacturasEvent( facturasVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+			
+			private function selectFactura():void
+			{
+				var i:int;
+				var facturaDetalleVO : FacturaDetalleVO = new FacturaDetalleVO();
+				model.facturaDetalle.facturaDetalleVO = new FacturaDetalleVO(); // reset
+				model.facturaCostos.facturaCostosVO = new FacturaCostosVO(); // reset
+				model.facturas.esNuevo = false;
+				if ( datagrid.selectedIndex > -1 ){
+					facturaDetalleVO.facNumId = datagrid.selectedItem.FacNumId;
+					model.facturaDetalle.facturaDetalleVO = facturaDetalleVO;
+					var event : FacturaDetalleEvent = new FacturaDetalleEvent( facturaDetalleVO );
+					CairngormEventDispatcher.getInstance().dispatchEvent( event );
+					// assign
+					facturaDetalleVO.expAnno = datagrid.selectedItem.ExpAnno;
+					facturaDetalleVO.expNum = datagrid.selectedItem.ExpNum;
+					// assign ExpAnno
+					for (i = 0; i < cmbDetalleExpAnno.dataProvider.length; i++) {
+						if ( cmbDetalleExpAnno.dataProvider[i] == datagrid.selectedItem.ExpAnno ){
+							cmbDetalleExpAnno.selectedIndex = i;
+							break;
+						}
+					}
+					// get Costos
+					var facturaCostosVO : FacturaCostosVO = new FacturaCostosVO();
+					facturaCostosVO.facNumId = datagrid.selectedItem.FacNumId;
+					model.facturaCostos.facturaCostosVO = facturaCostosVO;
+					var eventTwo : FacturaCostosEvent = new FacturaCostosEvent( facturaCostosVO );
+					CairngormEventDispatcher.getInstance().dispatchEvent( eventTwo );
+				}
+			}
+			
+			private function nuevoFactura():void
+			{
+				var i:int;
+				model.facturas.esNuevo = true;
+		
+				// set Anno
+				model.facturaDetalle.facturaDetalleVO = new FacturaDetalleVO();
+				for (i = 0; i < cmbDetalleExpAnno.dataProvider.length; i++) {
+					if ( cmbDetalleExpAnno.dataProvider[i] == this.Anno ){
+						cmbDetalleExpAnno.selectedIndex = i;
+						break;
+					}
+				}
+				// clean costos datagrid
+				model.facturaCostos.facturaCostosVO = new FacturaCostosVO;
+				// set combo estado = activo
+				cmbDetalleEstado.selectedIndex = 1;
+				// poner la fecha de hoy
+				dfFecha.selectedDate = new Date;
+			}
+			
+			private function updateFactura():void
+			{
+				var facturaDetalleVO : FacturaDetalleVO = new FacturaDetalleVO();
+				facturaDetalleVO.facNumId = txtDetalleFacNumId.text;
+				facturaDetalleVO.expAnno = cmbDetalleExpAnno.selectedItem;
+				facturaDetalleVO.expNum = txtDetalleExpNum.value;
+				facturaDetalleVO.estId = cmbDetalleEstado.selectedItem.EstId;
+				facturaDetalleVO.total = txtDetalleTotal.value;
+				facturaDetalleVO.tipoCambio = txtDetalleTipoCambio.value;
+				facturaDetalleVO.paxNombre = txtDetallePaxNombre.text.toUpperCase();
+				facturaDetalleVO.detalle = txtDetalleDetalle.text.toUpperCase();
+				facturaDetalleVO.fecha = dfFecha.selectedDate;
+				// set fecha String format yyy-mm-dd
+				var intDate:int;
+				var strDate:String;
+				var intMonth:int;
+				var strMonth:String;
+				intMonth = facturaDetalleVO.fecha.month + 1;
+				if (intMonth < 10){
+					strMonth = '0' + intMonth.toString();
+				} else {
+					strMonth = intMonth.toString();
+				}
+				intDate = facturaDetalleVO.fecha.date;
+				if (intDate < 10){
+					strDate = '0' + intDate.toString();
+				} else {
+					strDate = intDate.toString();
+				}
+				facturaDetalleVO.fechaString = facturaDetalleVO.fecha.fullYear + '-' + strMonth + '-' + strDate;
+				// Combo Usuarios
+				if ( cmbDetalleUsuario.selectedIndex == spark.components.ComboBox.CUSTOM_SELECTED_ITEM ){
+					facturaDetalleVO.usrNombre = cmbDetalleUsuario.selectedItem.toUpperCase();
+				} else { // it is in the list
+					facturaDetalleVO.usrNombre = cmbDetalleUsuario.selectedItem.Nombre.toUpperCase();
+				}
+				facturaDetalleVO.usrIndex = cmbDetalleUsuario.selectedIndex;
+				// Combo Agencias
+				if ( cmbDetalleAgencia.selectedIndex == spark.components.ComboBox.CUSTOM_SELECTED_ITEM ){
+					facturaDetalleVO.agNombre = cmbDetalleAgencia.selectedItem.toUpperCase();
+				} else { // it is in the list
+					facturaDetalleVO.agNombre = cmbDetalleAgencia.selectedItem.Nombre.toUpperCase();
+				}
+				facturaDetalleVO.agIndex = cmbDetalleAgencia.selectedIndex;
+				// Combo Agentes
+				if ( cmbDetalleAgente.selectedIndex == spark.components.ComboBox.CUSTOM_SELECTED_ITEM ){
+					facturaDetalleVO.agntNombre = cmbDetalleAgente.selectedItem.toUpperCase();
+				} else { // it is in the list
+					facturaDetalleVO.agntNombre = cmbDetalleAgente.selectedItem.Nombre.toUpperCase();
+				}
+				facturaDetalleVO.agntIndex = cmbDetalleAgente.selectedIndex;
+				facturaDetalleVO.impreso = model.facturaDetalle.facturaDetalleVO.impreso;
+				
+				model.facturaDetalle.facturaDetalleVO = facturaDetalleVO;
+				
+				// si estado ANULADO, pedir clave de administrador
+				if ( facturaDetalleVO.estId == 0 ){
+					var view:FacturaClaveAdministradorForm = FacturaClaveAdministradorForm(PopUpManager.createPopUp(this, FacturaClaveAdministradorForm, true));
+					view.accion = 'Anular';
+					PopUpManager.centerPopUp(view);
+				} else {
+					var event : FacturaDetalleUpdateEvent = new FacturaDetalleUpdateEvent( facturaDetalleVO );
+					CairngormEventDispatcher.getInstance().dispatchEvent( event );
+					model.facturas.esNuevo = false;
+				}
+			}
+			
+			
+			private function popupFacturaCostos():void
+			{
+				// no popup si no hay una factura seleccionada
+				if (datagrid.selectedIndex > -1){
+					// si ya habia puesto la clave de administrador
+					if (model.claveAdministrador.claveAdministradorVO.claveYaIngresada){
+						var view:FacturaCostosForm = FacturaCostosForm(PopUpManager.createPopUp(this, FacturaCostosForm, true));
+						view.facturaCostoDetalleVO_base.expAnno = model.facturaDetalle.facturaDetalleVO.expAnno;
+						view.facturaCostoDetalleVO_base.expNum = model.facturaDetalle.facturaDetalleVO.expNum;
+						view.facturaCostoDetalleVO_base.facNumId = model.facturaDetalle.facturaDetalleVO.facNumId;
+						PopUpManager.centerPopUp(view);
+					} else {
+						var view2:FacturaClaveAdministradorForm = FacturaClaveAdministradorForm(PopUpManager.createPopUp(this, FacturaClaveAdministradorForm, true));
+						view2.accion = 'CostosFactura';
+						view2.facturaCostoDetalleVO_base.expAnno = model.facturaDetalle.facturaDetalleVO.expAnno;
+						view2.facturaCostoDetalleVO_base.expNum = model.facturaDetalle.facturaDetalleVO.expNum;
+						view2.facturaCostoDetalleVO_base.facNumId = model.facturaDetalle.facturaDetalleVO.facNumId;
+						PopUpManager.centerPopUp(view2);
+					}
+				}
+			}
+			
+			// Crea la Factura en PDF
+			protected function savePDF():void
+			{
+				// update DB code
+				if (!model.facturaDetalle.facturaDetalleVO.impreso){
+					var event : FacturaDetalleImpresoUpdateEvent = new FacturaDetalleImpresoUpdateEvent( model.facturaDetalle.facturaDetalleVO );
+					CairngormEventDispatcher.getInstance().dispatchEvent( event );
+					// marcar como Impreso
+					model.facturaDetalle.facturaDetalleVO.impreso = true;
+				}
+				
+				// print code
+				var agNombre:String;
+				var fechaString:String;
+				var agntNombre:String;
+				var usrNombre:String;
+				var facturaString:String;
+				// Combo Agencias
+				if ( cmbDetalleAgencia.selectedIndex == spark.components.ComboBox.CUSTOM_SELECTED_ITEM ){
+					agNombre = cmbDetalleAgencia.selectedItem.toUpperCase();
+				} else { // it is in the list
+					agNombre = cmbDetalleAgencia.selectedItem.Nombre.toUpperCase();
+				}
+				// Combo Agentes
+				if ( cmbDetalleAgente.selectedIndex == spark.components.ComboBox.CUSTOM_SELECTED_ITEM ){
+					agntNombre = cmbDetalleAgente.selectedItem.toUpperCase();
+				} else { // it is in the list
+					agntNombre = cmbDetalleAgente.selectedItem.Nombre.toUpperCase();
+				}
+				// Combo Usuarios
+				if ( cmbDetalleUsuario.selectedIndex == spark.components.ComboBox.CUSTOM_SELECTED_ITEM ){
+					usrNombre = cmbDetalleUsuario.selectedItem.toUpperCase();
+				} else { // it is in the list
+					usrNombre = cmbDetalleUsuario.selectedItem.Nombre.toUpperCase();
+				}
+				// set fecha String format yyy-mm-dd
+				var intDate:int;
+				var strDate:String;
+				var strMonth:String;
+				switch (dfFecha.selectedDate.month){
+					case 0: strMonth = 'ENERO';
+						break;
+					case 1: strMonth = 'FEBRERO';
+						break;
+					case 2: strMonth = 'MARZO';
+						break;
+					case 3: strMonth = 'ABRIL';
+						break;
+					case 4: strMonth = 'MAYO';
+						break;
+					case 5: strMonth = 'JUNIO';
+						break;
+					case 6: strMonth = 'JULIO';
+						break;
+					case 7: strMonth = 'AGOSTO';
+						break;
+					case 8: strMonth = 'SEPTIEMBRE';
+						break;
+					case 9: strMonth = 'OCTUBRE';
+						break;
+					case 10: strMonth = 'NOVIEMBRE';
+						break;
+					case 11: strMonth = 'DICIEMBRE';
+						break;
+				}
+				intDate = dfFecha.selectedDate.date;
+				if (intDate < 10){
+					strDate = '0' + intDate.toString();
+				} else {
+					strDate = intDate.toString();
+				}
+				fechaString = strDate + " " + strMonth + " " + dfFecha.selectedDate.fullYear;
+				//
+				//Factura numero con ceros a la izquierda
+				facturaString = '0000000' + this.txtDetalleFacNumId.text; // relenar ceros a la izquierda
+				facturaString = facturaString.substr( -8, facturaString.length ); // 8 digitos
+				
+				claimPDF = new PDF(Orientation.PORTRAIT, Unit.MM, Size.LETTER);
+				claimPDF.setDisplayMode (Display.FULL_WIDTH); 
+				claimPDF.addPage();
+				
+				/* ****  HEADER  **** */
+				// logo image
+				claimPDF.addImageStream( new jpgBytes() as ByteArray, ColorSpace.DEVICE_RGB, null,10,10 );
+				
+//				claimPDF.setFont(FontFamily.ARIAL, Style.ITALIC, 8);
+				claimPDF.setFont(new CoreFont( FontFamily.ARIAL ), 8);
+				claimPDF.setXY(85,22);
+				claimPDF.addMultiCell(70,3,"Sistemas de Viajes y Excursiones Turísticas S.A." + '\n' +
+					"Cédula Jurídica # 3-101-141548" + '\n' +
+					"Tel.: (506) 2255-6565 / Fax: (506) 2256-3180" + '\n' +
+					"P.O. Box: 8613-1000, San José, Costa Rica" + '\n' +
+					"Dirección: Del edificio Colon 125 mts Norte," + '\n' +
+					"frente a Rios Tropicales, Paseo Colon" + '\n' +
+					"E-mail: tacavacaciones@sivetur.com" , 0, Align.CENTER);
+
+//				claimPDF.setFont(FontFamily.ARIAL, Style.BOLD, 10);
+				claimPDF.setFont(new CoreFont( FontFamily.ARIAL ), 10);
+				claimPDF.addText("FACTURA Nº " + facturaString,160,33);
+
+				/* ****  BODY  **** */
+				
+				// line separator				
+				claimPDF.moveTo ( 20, 48 );
+				claimPDF.lineTo ( 198, 48 );
+				claimPDF.end();
+				
+//				claimPDF.setFont(FontFamily.ARIAL, Style.NORMAL, 10);
+				claimPDF.setFont(new CoreFont( FontFamily.ARIAL ), 10);
+				claimPDF.addText("Señor (es): " + agNombre,20,55);
+				claimPDF.addText("Fecha " + fechaString,150,55);
+				claimPDF.addText("Exp Nº " + cmbDetalleExpAnno.selectedItem + " - " + txtDetalleExpNum.value,20,60);
+				claimPDF.addText("Pax " + txtDetallePaxNombre.text.toUpperCase(),85,60);
+				claimPDF.addText("Counter " + agntNombre,20,70);				
+				// line separator				
+				claimPDF.moveTo ( 20, 64 );
+				claimPDF.lineTo ( 198, 64 );
+				claimPDF.end();
+				
+//				claimPDF.setFont(FontFamily.COURIER, Style.NORMAL, 11);
+				claimPDF.setFont(new CoreFont( FontFamily.COURIER ), 11);
+				claimPDF.setXY(20,75);
+				claimPDF.addMultiCell(165,4,txtDetalleDetalle.text,0,Align.LEFT);
+				
+//				claimPDF.setFont(FontFamily.ARIAL, Style.NORMAL, 10);
+				claimPDF.setFont(new CoreFont( FontFamily.ARIAL ), 10);
+				claimPDF.addText("Tipo de Cambio " + String(Number(txtDetalleTipoCambio.value).toFixed(2)),20,235);
+				claimPDF.addText("Total US$ " + String(Number(txtDetalleTotal.value).toFixed(2)),160,235);
+
+				/* ****  FOOTER  **** */
+				
+				// line separator				
+				claimPDF.moveTo ( 20, 239 );
+				claimPDF.lineTo ( 198, 239 );
+				claimPDF.end();
+				
+				claimPDF.addText("Hecho por " + usrNombre,20,245);
+				
+				claimPDF.setFont(new CoreFont( FontFamily.ARIAL ), 8);
+				claimPDF.addText("Autorizado mediante oficio No 01-0068-97 del 26-09-07 de la D.G.T.D.",20,250);
+				
+				// HERE IS HOW TO SAVE FROM FLASH PLAYER 10 OR GREATER. THIS IS USED FOR THIS SAMPLE.
+				var bytes:ByteArray = claimPDF.save(Method.LOCAL);
+				var f:FileReference = new FileReference();
+				f.save(bytes,"Factura_" + facturaString + ".pdf");
+			}
+			
+			// Sorts for the numeric columns
+			private function sortCompareNumericExpNum(itemA:Object, itemB:Object, gc:GridColumn):int 
+			{
+				return ObjectUtil.numericCompare(itemA.ExpNum,itemB.ExpNum);
+			}
+			
+			private function sortCompareNumericFacNumId(itemA:Object, itemB:Object, gc:GridColumn):int 
+			{
+				return ObjectUtil.numericCompare(itemA.FacNumId,itemB.FacNumId);
+			}
+
+			private function sortCompareNumericTotal(itemA:Object, itemB:Object, gc:GridColumn):int 
+			{
+				return ObjectUtil.numericCompare(itemA.Total,itemB.Total);
+			}
+
+			private function sortCompareNumericCosto(itemA:Object, itemB:Object, gc:GridColumn):int 
+			{
+				return ObjectUtil.numericCompare(itemA.Costo,itemB.Costo);
+			}
+			
+			private function myParseFunc(val:String):Number 
+			{ 
+				// used in numericStepper to mandatory use "." as decimal point
+				var stringVal:String = val.replace(",","."); 
+				return Number(stringVal);     
+			} 
+			
+		]]>
+	</fx:Script>
+	
+	<s:Label x="85" y="10" text="Año"/>
+	<s:Label x="163.7" y="10.3" text="Exp. #"/>
+	<s:Label x="9.65" y="10.299999" text="Factura #"/>
+	<s:Label x="470.7" y="9.95" text="Pasajeros"/>
+	<s:Label x="220.25" y="8.95" text="Agencia"/>
+	
+	<s:TextInput id="txtFacNumId" x="10" y="21" width="67"
+				 restrict="0-9"
+				 typographicCase="uppercase"/>
+	<s:DropDownList id="cmbExpAnno" x="85" y="21" width="71"
+				alternatingItemColors="[#F7F7F7, white]"
+				selectedIndex="{model.facturas.facturasVO.expAnnoIndex}"
+				dataProvider="{expAnnoArray}"/>
+	<s:TextInput id="txtExpNum" x="164" y="21" width="46"
+				 text="{model.facturas.facturasVO.expNum}"
+				 restrict="0-9"/>
+	<s:TextInput id="txtAgencia" x="220.65" y="19.65" width="242"
+				 typographicCase="uppercase"/>
+	<s:TextInput id="txtPax" x="471" y="20.65" width="239"
+				 typographicCase="uppercase"/>
+	<s:Button x="718" y="20" label="Buscar"
+			  click="facturasSearch()"/>
+	
+	<s:DataGrid id="datagrid" x="10" y="50.35" width="778" height="260"
+				 verticalScrollPolicy="on"
+				 alternatingRowColors="[#F7F7F7, white]"
+				 selectionChange="selectFactura()"
+				 dataProvider="{model.facturas.facturasVO.datagridInfo}">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn headerText="Fact #" minWidth="60"
+							  sortCompareFunction="sortCompareNumericFacNumId"
+							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
+								dataField="FacNumId"/>
+				<s:GridColumn headerText="Año" minWidth="45"
+							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
+								   dataField="ExpAnno"/>
+				<s:GridColumn headerText="Exp Num" minWidth="65"
+								   sortCompareFunction="sortCompareNumericExpNum"
+								   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
+								   dataField="ExpNum"/>
+				<s:GridColumn headerText="Estado" minWidth="55"
+								   dataField="Estado"/>
+				<s:GridColumn headerText="Fecha" minWidth="75"
+								   dataField="FechaString"/>
+				<s:GridColumn headerText="Agencia" minWidth="200"
+								   dataField="AgNombre"/>
+				<s:GridColumn headerText="Nombre de Pasajeros" minWidth="165"
+								   dataField="PaxNombre"/>
+				<s:GridColumn headerText="Total" minWidth="80"
+							  sortCompareFunction="sortCompareNumericTotal"
+							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+								   dataField="TotalFormated"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+	<mx:TabNavigator id="tabNavigator" x="10" y="322" width="680" height="245" selectedIndex="1">
+		<s:NavigatorContent label="Factura" width="100%" height="100%">
+			<s:Label x="8.65" y="10.3" text="Factura #"/>
+			<s:Label id="txtDetalleFacNumId" x="9" y="27" width="65"
+						 text="{model.facturaDetalle.facturaDetalleVO.facNumId}"/>
+			<s:Label x="86" y="10" text="Año"/>
+			<s:DropDownList id="cmbDetalleExpAnno" x="86" y="22" width="66"
+						alternatingItemColors="[#F7F7F7, white]"
+						enabled="{!model.facturaDetalle.facturaDetalleVO.impreso}"
+						dataProvider="{expAnnoDetalleArray}"/>
+			<s:Label x="162.7" y="10.3" text="Exp. #"/>
+			<s:NumericStepper id="txtDetalleExpNum" x="160" y="21" width="60"
+							  stepSize="1"
+							  maximum="999999"
+							  valueParseFunction="myParseFunc"
+							  enabled="{!model.facturaDetalle.facturaDetalleVO.impreso}"
+							  value="{model.facturaDetalle.facturaDetalleVO.expNum}"/>
+			<s:Label x="227.6" y="9.25" text="Estado"/>
+			<s:ComboBox id="cmbDetalleEstado" x="228" y="20" width="107"
+						typographicCase="uppercase"
+						alternatingItemColors="[#F7F7F7, white]"
+						labelField="Nombre"
+						selectedIndex="{model.facturaDetalle.facturaDetalleVO.estId}"
+						dataProvider="{model.estadosNombre.estadosNombreVO.datagridInfo}"/>
+			<s:Label x="345.7" y="10.95" text="Fecha"/>
+			<mx:DateField id="dfFecha" x="346" y="21"
+						  enabled="{!model.facturaDetalle.facturaDetalleVO.impreso}"
+						  selectedDate="{model.facturaDetalle.facturaDetalleVO.fecha}"/>
+			<s:Label x="484.7" y="9.25" text="Total"/>
+			<s:NumericStepper id="txtDetalleTotal" x="485" y="20" width="78"
+							  stepSize="0.01"
+							  maximum="999999"
+							  valueParseFunction="myParseFunc"
+							  enabled="{!model.facturaDetalle.facturaDetalleVO.impreso}"
+							  value="{model.facturaDetalle.facturaDetalleVO.total}"/>
+			<s:Label x="575.7" y="9.25" text="Tipo de Cambio"/>
+			<s:NumericStepper id="txtDetalleTipoCambio" x="576" y="20" width="90"
+							  stepSize="0.01"
+							  maximum="99999"
+							  valueParseFunction="myParseFunc"
+							  enabled="{!model.facturaDetalle.facturaDetalleVO.impreso}"
+							  value="{model.facturaDetalle.facturaDetalleVO.tipoCambio}"/>
+			
+			<s:Label x="9.6" y="59.25" text="Agencia"/>
+			<s:ComboBox id="cmbDetalleAgencia" x="10" y="70" width="320"
+						typographicCase="uppercase"
+						alternatingItemColors="[#F7F7F7, white]"
+						labelField="Nombre"
+						selectedIndex="{model.facturaDetalle.facturaDetalleVO.agIndex}"
+						enabled="{!model.facturaDetalle.facturaDetalleVO.impreso}"
+						dataProvider="{model.agenciasNombre.agenciasNombreVO.datagridInfo}"/>
+			<s:Label x="342.7" y="59.95" text="Agente en la Factura"/>
+			<s:ComboBox id="cmbDetalleAgente" x="343" y="70" width="324"
+						typographicCase="uppercase"
+						alternatingItemColors="[#F7F7F7, white]"
+						labelField="Nombre"
+						selectedIndex="{model.facturaDetalle.facturaDetalleVO.agntIndex}"
+						enabled="{!model.facturaDetalle.facturaDetalleVO.impreso}"
+						dataProvider="{model.agentesNombre.agentesNombreVO.datagridInfo}"/>
+			
+			<s:Label x="430.7" y="108.95" text="Nombre Pax"/>
+			<s:TextInput id="txtDetallePaxNombre" x="431" y="119.6" width="237"
+						 typographicCase="uppercase"
+						 enabled="{!model.facturaDetalle.facturaDetalleVO.impreso}"
+						 text="{model.facturaDetalle.facturaDetalleVO.paxNombre}"/>
+			<s:Label x="428.55" y="167.25" text="Autorizado por"/>
+			<s:ComboBox id="cmbDetalleUsuario" x="430" y="178" width="238"
+						typographicCase="uppercase"
+						alternatingItemColors="[#F7F7F7, white]"
+						labelField="Nombre"
+						selectedIndex="{model.facturaDetalle.facturaDetalleVO.usrIndex}"
+						enabled="{!model.facturaDetalle.facturaDetalleVO.impreso}"
+						dataProvider="{model.usuarios.usuariosVO.datagridInfo}"/>
+
+
+			<s:DataGrid id="datagridCosto" x="10" y="100" height="111" width="409"
+				alternatingRowColors="[#F7F7F7, white]"
+				doubleClickEnabled="true" 
+				doubleClick="popupFacturaCostos()"
+				dataProvider="{model.facturaCostos.facturaCostosVO.datagridInfo}">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn headerText="Agente" minWidth="240"
+										   dataField="AgntNombre"/>
+						<s:GridColumn headerText="Costo" minWidth="70"
+										   sortCompareFunction="sortCompareNumericCosto"
+										   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+										   dataField="Costo"/>
+						<s:GridColumn headerText="ChequeNum" minWidth="80"
+									  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+										   dataField="ChequeNum"/>
+					</s:ArrayList>
+				</s:columns>
+			</s:DataGrid>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="Detalle" width="100%" height="100%">
+			<s:TextArea id="txtDetalleDetalle" x="60" y="0" width="555" height="201" 
+						verticalScrollPolicy="on"
+						typographicCase="uppercase" fontFamily="Courier New" fontSize="12"
+						enabled="{!model.facturaDetalle.facturaDetalleVO.impreso}"
+						text="{model.facturaDetalle.facturaDetalleVO.detalle}"/>
+		</s:NavigatorContent>
+	</mx:TabNavigator>
+	<s:Button id="btnNuevo" x="698" y="344" width="90" label="Nuevo" 
+			  enabled="{!model.facturas.esNuevo}"
+			  click="nuevoFactura()"/>
+	<s:Button id="btnGuardar" x="698" y="374" width="90" label="Guardar" 
+			  click="updateFactura()"/>
+	<s:Button id="btnCancelar" x="698" y="403" width="90" label="Cancelar" 
+			  click="selectFactura()"/>
+	<s:Button id="btnImprimir" x="698" y="483" width="90" label="Imprimir" 
+			  click="savePDF()"/>
+	<s:Label visible="{model.facturaDetalle.facturaDetalleVO.impreso}" x="704" y="528" color="#FF0000"
+			 fontSize="18" fontWeight="bold" text="IMPRESO"/>
+</s:Panel>

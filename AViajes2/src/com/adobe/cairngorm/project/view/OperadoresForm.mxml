@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 title="Operadores"
+		 creationComplete="init()"
+		 width="1014" height="610">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[  
+			import com.adobe.cairngorm.control.CairngormEventDispatcher;
+			import com.adobe.cairngorm.project.event.AgenciasNombreEvent;
+			import com.adobe.cairngorm.project.event.CounterEvent;
+			import com.adobe.cairngorm.project.event.OperadoreDetalleEvent;
+			import com.adobe.cairngorm.project.event.OperadoreDetalleUpdateEvent;
+			import com.adobe.cairngorm.project.event.OperadoresEvent;
+			import com.adobe.cairngorm.project.model.Operadores;
+			import com.adobe.cairngorm.project.model.ModelLocator;
+			import com.adobe.cairngorm.project.vo.*;
+			import mx.collections.ArrayCollection;
+			// export to CSV
+			import com.adobe.cairngorm.project.utils.DataExporter;
+			
+			[Bindable]
+			public var model : ModelLocator = ModelLocator.getInstance();
+			
+			[Bindable]
+			public var esNuevo : Boolean = false;
+			
+			public function init() : void
+			{
+			}	
+				
+			public function operadoresSearch() : void
+			{
+				var operadoresVO : OperadoresVO = new OperadoresVO();
+				operadoresVO.nombre = txtOperador.text;
+				model.operadores.operadoresVO = operadoresVO;
+				var event : OperadoresEvent = new OperadoresEvent( operadoresVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+			
+			private function selectOperadore():void
+			{
+				var i:int;
+				var operadoreDetalleVO : OperadoreDetalleVO = new OperadoreDetalleVO();
+				model.operadoreDetalle.operadoreDetalleVO = new OperadoreDetalleVO(); // reset
+				this.esNuevo = false;
+				if ( datagrid.selectedIndex > -1 ){
+					operadoreDetalleVO.opId = datagrid.selectedItem.OpId;
+					model.operadoreDetalle.operadoreDetalleVO = operadoreDetalleVO;
+					var event : OperadoreDetalleEvent = new OperadoreDetalleEvent( operadoreDetalleVO );
+					CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				}
+			}
+			
+			private function nuevoOperadore():void
+			{
+				var i:int;
+				this.esNuevo = true;
+				model.operadoreDetalle.operadoreDetalleVO = new OperadoreDetalleVO();
+			}
+			
+			private function updateOperadore():void
+			{
+				var operadoreDetalleVO : OperadoreDetalleVO = new OperadoreDetalleVO();
+				if ( this.esNuevo ){
+					operadoreDetalleVO.opId = -1;
+				} else {
+					operadoreDetalleVO.opId = datagrid.selectedItem.OpId;
+				}
+				operadoreDetalleVO.nombre = txtDetalleNombre.text.toUpperCase();
+				operadoreDetalleVO.direccion = txtDetalleDireccion.text.toUpperCase();
+				operadoreDetalleVO.telefono = txtDetalleTelefono.text.toUpperCase();
+				operadoreDetalleVO.telefono2 = txtDetalleTelefono2.text.toUpperCase();
+				operadoreDetalleVO.fax = txtDetalleFax.text.toUpperCase();
+				operadoreDetalleVO.email = txtDetalleEmail.text.toUpperCase();
+				operadoreDetalleVO.contacto = txtDetalleContacto.text.toUpperCase();
+				
+				model.operadoreDetalle.operadoreDetalleVO = operadoreDetalleVO;
+				var event : OperadoreDetalleUpdateEvent = new OperadoreDetalleUpdateEvent( operadoreDetalleVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				this.esNuevo = false;
+			}
+
+			private function exportCSV(dg:DataGrid):void
+			{
+				var arrayTotals : Array = new Array();
+				arrayTotals.push("");
+				DataExporter.exportGridAndTotalsCSV(dg, arrayTotals);
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:Label x="10.3" y="9.95" text="Operador"/>
+	<s:TextInput id="txtOperador" x="10.65" y="20.65" width="251"
+				 typographicCase="uppercase"/>
+	<s:Button x="273" y="21" label="Buscar"
+			  click="operadoresSearch()"/>
+	<s:Button x="931" y="20" label="Exportar"
+			  enabled="{datagrid.dataProvider != null}" click="exportCSV(datagrid)"/>
+	
+	<s:DataGrid id="datagrid" x="10" y="50.35" width="992" height="376"
+				 verticalScrollPolicy="on"
+				 alternatingRowColors="[#F7F7F7, white]"
+				 selectionChange="selectOperadore()"
+				 dataProvider="{model.operadores.operadoresVO.datagridInfo}">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn headerText="Nombre" minWidth="250"
+								   dataField="Nombre"/>
+				<s:GridColumn headerText="Teléfono" minWidth="240"
+								   dataField="Telefono"/>
+				<s:GridColumn headerText="Teléfono 2" minWidth="120"
+								   dataField="Telefono2"/>
+				<s:GridColumn headerText="Fax" minWidth="120"
+								   dataField="Fax"/>
+				<s:GridColumn headerText="Email" minWidth="240"
+								   dataField="Email"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+
+
+	<s:TextInput id="txtDetalleNombre" x="10" y="444" width="563"
+				 text="{model.operadoreDetalle.operadoreDetalleVO.nombre}"
+				 typographicCase="uppercase"/>
+	<s:Label x="10" y="434" text="Nombre"/>
+	<s:Label x="579.7" y="435.3" text="Teléfono"/>
+	<s:TextInput id="txtDetalleTelefono" x="580" y="446" width="207"
+				 text="{model.operadoreDetalle.operadoreDetalleVO.telefono}"
+				 typographicCase="uppercase"/>
+	<s:Label x="794.7" y="434.95" text="Teléfono 2"/>
+	<s:TextInput id="txtDetalleTelefono2" x="795" y="445.65" width="100"
+				 text="{model.operadoreDetalle.operadoreDetalleVO.telefono2}"
+				 typographicCase="uppercase"/>
+
+	<s:Label x="10.6" y="484.25" text="Dirección"/>
+	<s:TextInput id="txtDetalleDireccion" x="11" y="495" width="776"
+				 text="{model.operadoreDetalle.operadoreDetalleVO.direccion}"
+				 typographicCase="uppercase"/>
+	<s:Label x="794.7" y="484.3" text="Fax"/>
+	<s:TextInput id="txtDetalleFax" x="795" y="495" width="100"
+				 text="{model.operadoreDetalle.operadoreDetalleVO.fax}"
+				 typographicCase="uppercase"/>
+	
+	<s:Label x="10.6" y="534.25" text="Email"/>
+	<s:Label x="581.7" y="533.95" text="Contacto"/>
+
+	<s:TextInput id="txtDetalleEmail" x="11" y="545" width="562"
+				 text="{model.operadoreDetalle.operadoreDetalleVO.email}"
+				 typographicCase="uppercase"/>
+	<s:TextInput id="txtDetalleContacto" x="581" y="544.65" width="314"
+				 text="{model.operadoreDetalle.operadoreDetalleVO.contacto}"
+				 typographicCase="uppercase"/>
+
+	<s:Button id="btnNuevo" x="909" y="438" width="90" label="Nuevo" 
+			  enabled="{!this.esNuevo}"
+			  click="nuevoOperadore()"/>
+	<s:Button id="btnGuardar" x="909" y="468" width="90" label="Guardar" 
+			  click="updateOperadore()"/>
+	<s:Button id="btnCancelar" x="909" y="497" width="90" label="Cancelar" 
+			  click="selectOperadore()"/>
+</s:Panel>

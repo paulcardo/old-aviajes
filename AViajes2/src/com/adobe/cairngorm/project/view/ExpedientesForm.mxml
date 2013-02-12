@@ -1,0 +1,429 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 title="Expedientes"
+		 creationComplete="init()"
+		 width="1014" height="610">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[  
+			import com.adobe.cairngorm.control.CairngormEventDispatcher;
+			import com.adobe.cairngorm.project.event.CounterEvent;
+			import com.adobe.cairngorm.project.event.ExpedienteCostosEvent;
+			import com.adobe.cairngorm.project.event.ExpedienteDetalleEvent;
+			import com.adobe.cairngorm.project.event.ExpedienteDetalleUpdateEvent;
+			import com.adobe.cairngorm.project.event.ExpedienteFacturasEvent;
+			import com.adobe.cairngorm.project.event.ExpedientesEvent;
+			import com.adobe.cairngorm.project.model.Expedientes;
+			import com.adobe.cairngorm.project.model.ModelLocator;
+			import com.adobe.cairngorm.project.vo.*;
+			
+			import mx.collections.ArrayCollection;
+			import mx.managers.PopUpManager;
+			import mx.utils.ObjectUtil;
+			
+			import com.adobe.cairngorm.project.event.FacturasEvent;
+			import com.adobe.cairngorm.project.event.VouchersEvent;
+			
+			[Bindable]
+			public var model : ModelLocator = ModelLocator.getInstance();
+			
+			[Bindable]
+			public var expAnnoArray : ArrayCollection = new ArrayCollection;
+			[Bindable]
+			public var expAnnoDetalleArray : ArrayCollection = new ArrayCollection;
+			[Bindable]
+			public var esNuevo : Boolean = false;
+			
+			public var Anno :int;
+			
+			public function init() : void
+			{
+				var i : int;
+				var today:Date= new Date();
+				
+				expAnnoArray.addItem('Todos');
+				// datos para combos Años
+				this.Anno = today.getFullYear();
+				for (i = this.Anno + 1; i > 2000; i--) {
+					expAnnoArray.addItem( i.toString() );
+					expAnnoDetalleArray.addItem( i.toString() );
+				}
+				cmbExpAnno.selectedIndex = 2;
+				
+				model.expedientes.expedientesVO = new ExpedientesVO();// reset
+			}	
+				
+			public function expedientesSearch() : void
+			{
+				var expedientesVO : ExpedientesVO = new ExpedientesVO();
+				expedientesVO.expAnno = cmbExpAnno.selectedItem;
+				expedientesVO.expNum = txtExpNum.text;
+				expedientesVO.agenciaNombre = txtAgencia.text;
+				expedientesVO.paxNombre = txtPax.text;
+				expedientesVO.operadorNombre = txtOperador.text;
+				model.expedientes.expedientesVO = expedientesVO;
+				var event : ExpedientesEvent = new ExpedientesEvent( expedientesVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+			
+			private function selectExpediente():void
+			{
+				var i:int;
+				var expedienteDetalleVO : ExpedienteDetalleVO = new ExpedienteDetalleVO();
+				model.expedienteDetalle.expedienteDetalleVO = new ExpedienteDetalleVO(); // reset
+				model.expedienteCostos.expedienteCostosVO = new ExpedienteCostosVO();// reset
+				
+				this.esNuevo = false;
+				if ( datagrid.selectedIndex > -1 ){
+					expedienteDetalleVO.expAnno = datagrid.selectedItem.ExpAnno;
+					expedienteDetalleVO.expNum = datagrid.selectedItem.ExpNum;
+					model.expedienteDetalle.expedienteDetalleVO = expedienteDetalleVO;
+					var event : ExpedienteDetalleEvent = new ExpedienteDetalleEvent( expedienteDetalleVO );
+					CairngormEventDispatcher.getInstance().dispatchEvent( event );
+					// assign ExpAnno
+					for (i = 0; i < cmbDetalleExpAnno.dataProvider.length; i++) {
+						if ( cmbDetalleExpAnno.dataProvider[i] == datagrid.selectedItem.ExpAnno ){
+							cmbDetalleExpAnno.selectedIndex = i;
+							break;
+						}
+					}
+					// assign Agencia
+					var inList :Boolean = false;
+					for (i = 0; i < cmbDetalleAgencia.dataProvider.length; i++) {
+						if ( String(cmbDetalleAgencia.dataProvider[i].Nombre) == String(datagrid.selectedItem.AgNombre) ){
+							cmbDetalleAgencia.selectedIndex = i;
+							inList = true
+							break;
+						}
+					}
+					if ( !inList ){
+						var xmlTemp:XML;
+						xmlTemp = XML('<row><Nombre>' + datagrid.selectedItem.AgNombre + '</Nombre></row>')
+						trace(xmlTemp)
+						cmbDetalleAgencia.dataProvider.addItem( xmlTemp );
+						cmbDetalleAgencia.selectedIndex = cmbDetalleAgencia.dataProvider.length - 1; 
+					}
+					// get Costos
+					var expedienteCostosVO : ExpedienteCostosVO = new ExpedienteCostosVO();
+					expedienteCostosVO.expAnno = expedienteDetalleVO.expAnno;
+					expedienteCostosVO.expNum = expedienteDetalleVO.expNum;
+					model.expedienteCostos.expedienteCostosVO = expedienteCostosVO;
+					var eventTwo : ExpedienteCostosEvent = new ExpedienteCostosEvent( expedienteCostosVO );
+					CairngormEventDispatcher.getInstance().dispatchEvent( eventTwo );
+					// get Facturas List
+					var facturasVO : FacturasVO = new FacturasVO();
+					facturasVO.expAnno = expedienteDetalleVO.expAnno;
+					facturasVO.expNum = expedienteDetalleVO.expNum.toString();
+					var eventTree : ExpedienteFacturasEvent = new ExpedienteFacturasEvent( facturasVO );
+					CairngormEventDispatcher.getInstance().dispatchEvent( eventTree );
+					
+					
+					// **************************************************************************
+					// clean grids Facturas y Vouchers. 
+					// Asignar el expAnno y expNum  y buscar
+					// **************************************************************************
+					model.facturaDetalle.facturaDetalleVO = new FacturaDetalleVO; // reset Detalle
+					model.facturaCostos.facturaCostosVO = new FacturaCostosVO; // reset Factura Costos
+					// var facturasVO ya declarado y con datos iniciales, aqui completo y llamo al otro evento
+					facturasVO.facNumId = '';
+					facturasVO.expAnnoIndex = cmbDetalleExpAnno.selectedIndex + 1;
+					facturasVO.agenciaNombre = '';
+					facturasVO.paxNombre = '';
+					model.facturas.facturasVO  = facturasVO;
+					var eventFour : FacturasEvent = new FacturasEvent( model.facturas.facturasVO );
+					CairngormEventDispatcher.getInstance().dispatchEvent( eventFour );
+					
+					model.voucherDetalle.voucherDetalleVO = new VoucherDetalleVO; // reset Detalle
+					var vouchersVO : VouchersVO  = new VouchersVO();// reset					
+					vouchersVO.vouId = '';
+					vouchersVO.expAnno = expedienteDetalleVO.expAnno;
+					vouchersVO.expNum = expedienteDetalleVO.expNum.toString();
+					vouchersVO.expAnnoIndex = cmbDetalleExpAnno.selectedIndex + 1;
+					vouchersVO.operadorNombre = '';
+					vouchersVO.paxNombre = '';
+					model.vouchers.vouchersVO = vouchersVO;
+					var eventFive : VouchersEvent = new VouchersEvent( vouchersVO );
+					CairngormEventDispatcher.getInstance().dispatchEvent( eventFive );
+				} else {
+					cmbDetalleAgencia.selectedIndex = -1;
+				}
+			}
+			
+			private function nuevoExpediente():void
+			{
+				var i:int;
+				this.esNuevo = true;
+				model.expedienteDetalle.expedienteDetalleVO = new ExpedienteDetalleVO();
+				for (i = 0; i < cmbDetalleExpAnno.dataProvider.length; i++) {
+					if ( cmbDetalleExpAnno.dataProvider[i] == this.Anno ){
+						cmbDetalleExpAnno.selectedIndex = i;
+						break;
+					}
+				}
+				
+//				var counterVO : CounterVO = new CounterVO();
+//				counterVO.SeqName = 'Expediente';
+//				model.counter.counterVO = counterVO;
+//				var event : CounterEvent = new CounterEvent( counterVO );
+//				CairngormEventDispatcher.getInstance().dispatchEvent( event );	
+				
+				// clean costos datagrid
+				model.expedienteCostos.expedienteCostosVO= new ExpedienteCostosVO;
+				
+				txtDetalleExpNum.text = '';
+			}
+			
+			private function updateExpediente():void
+			{
+				var expedienteDetalleVO : ExpedienteDetalleVO = new ExpedienteDetalleVO();
+				expedienteDetalleVO.expAnno = cmbDetalleExpAnno.selectedItem;
+				expedienteDetalleVO.expNum = int(txtDetalleExpNum.text);
+				expedienteDetalleVO.paxNombre = txtDetallePaxNombre.text.toUpperCase();
+				expedienteDetalleVO.paxNum = txtDetallePaxNum.value;
+				expedienteDetalleVO.excursion = txtDetalleExcursion.text.toUpperCase();
+				expedienteDetalleVO.reservaNum = txtDetalleReservaNum.text.toUpperCase();
+				expedienteDetalleVO.confirmacionNum = txtDetalleConfirmacionNum.text.toUpperCase();
+				if ( cmbDetalleAgencia.selectedIndex == spark.components.ComboBox.CUSTOM_SELECTED_ITEM ){
+					expedienteDetalleVO.agenciaNombre = cmbDetalleAgencia.selectedItem.toUpperCase();
+				} else { // it is in the list
+					expedienteDetalleVO.agenciaNombre = cmbDetalleAgencia.selectedItem.Nombre.toUpperCase();
+				}
+				
+				model.expedienteDetalle.expedienteDetalleVO = expedienteDetalleVO;
+				var event : ExpedienteDetalleUpdateEvent = new ExpedienteDetalleUpdateEvent( expedienteDetalleVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				this.esNuevo = false;
+			}
+			
+			private function popupExpedienteCostos():void
+			{
+				// no popup si no hay una factura seleccionada
+				if (datagrid.selectedIndex > -1){
+					// si ya habia puesto la clave de administrador
+					if (model.claveAdministrador.claveAdministradorVO.claveYaIngresada){
+						var view:ExpedienteCostosForm = ExpedienteCostosForm(PopUpManager.createPopUp(this, ExpedienteCostosForm, true));
+						PopUpManager.centerPopUp(view);
+					} else {
+						var view2:FacturaClaveAdministradorForm = FacturaClaveAdministradorForm(PopUpManager.createPopUp(this, FacturaClaveAdministradorForm, true));
+						view2.accion = 'CostosExpediente';
+						PopUpManager.centerPopUp(view2);
+					}
+				}
+			}
+			
+			private function popupFacturaCostos():void
+			{
+				// no popup si no hay una factura seleccionada
+				if (datagridFacturas.selectedIndex > -1){
+					// si ya habia puesto la clave de administrador
+					if (model.claveAdministrador.claveAdministradorVO.claveYaIngresada){
+						var view:FacturaCostosForm = FacturaCostosForm(PopUpManager.createPopUp(this, FacturaCostosForm, true));
+						view.facturaCostoDetalleVO_base.expAnno = model.expedienteDetalle.expedienteDetalleVO.expAnno;
+						view.facturaCostoDetalleVO_base.expNum = model.expedienteDetalle.expedienteDetalleVO.expNum;
+						view.facturaCostoDetalleVO_base.facNumId = datagridFacturas.selectedItem.FacNumId;
+						PopUpManager.centerPopUp(view);
+					} else {
+						var view2:FacturaClaveAdministradorForm = FacturaClaveAdministradorForm(PopUpManager.createPopUp(this, FacturaClaveAdministradorForm, true));
+						view2.accion = 'CostosFactura';
+						view2.facturaCostoDetalleVO_base.expAnno = model.expedienteDetalle.expedienteDetalleVO.expAnno;
+						view2.facturaCostoDetalleVO_base.expNum = model.expedienteDetalle.expedienteDetalleVO.expNum;
+						view2.facturaCostoDetalleVO_base.facNumId = datagridFacturas.selectedItem.FacNumId;
+						PopUpManager.centerPopUp(view2);
+					}
+				}
+			}
+			
+			// Sort for the numeric columns
+			private function sortCompareNumeric(itemA:Object, itemB:Object, gc:GridColumn):int 
+			{
+				return ObjectUtil.numericCompare(itemA[gc.dataField], itemB[gc.dataField]);
+				
+			}
+			
+			private function myParseFunc(val:String):Number 
+			{ 
+				// used in numericStepper to mandatory use "." as decimal point
+				var stringVal:String = val.replace(",","."); 
+				return Number(stringVal);     
+			} 
+		]]>
+	</fx:Script>
+	
+	<s:Label x="10" y="10" text="Exp. Año"/>
+	<s:Label x="86.7" y="10.3" text="Exp. #"/>
+	<s:Label x="139.7" y="10.3" text="Agencia"/>
+	<s:Label x="400.7" y="9.95" text="Pasajeros"/>
+	
+	<s:Label x="641.35" y="8.95" text="Operador"/>
+	<s:DropDownList id="cmbExpAnno" x="10" y="21" width="71"
+				alternatingItemColors="[#F7F7F7, white]"
+				dataProvider="{expAnnoArray}"/>
+	<s:TextInput id="txtExpNum" x="87" y="21" width="46"
+				 restrict="0-9"/>
+	<s:TextInput id="txtAgencia" x="140" y="21" width="253"
+				 typographicCase="uppercase"/>
+	<s:TextInput id="txtPax" x="401" y="20.65" width="232"
+				 typographicCase="uppercase"/>
+	<s:TextInput id="txtOperador" x="641.65" y="19.65" width="248"
+				 typographicCase="uppercase"/>
+	<s:Button x="916" y="20" label="Buscar"
+			  click="expedientesSearch()"/>
+	
+	<s:DataGrid id="datagrid" x="10" y="50.35" width="992" height="260"
+				 verticalScrollPolicy="on"
+				 alternatingRowColors="[#F7F7F7, white]"
+				 selectionChange="selectExpediente()"
+				 dataProvider="{model.expedientes.expedientesVO.datagridInfo}">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn headerText="Año" minWidth="60"
+							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
+								   dataField="ExpAnno"/>
+				<s:GridColumn headerText="Número" minWidth="60"
+								   sortCompareFunction="sortCompareNumeric"
+								   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
+								   dataField="ExpNum"/>
+				<s:GridColumn headerText="Agencia" minWidth="375"
+								   dataField="AgNombre"/>
+				<s:GridColumn headerText="Nombre de Pasajeros" minWidth="375"
+								   dataField="PaxNombre"/>
+				<s:GridColumn headerText="Costo Operador" minWidth="100"
+							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
+								   dataField="Costs"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+
+	<mx:TabNavigator x="10" y="322" width="892" height="245">
+		<s:NavigatorContent label="Expediente" width="100%" height="100%">
+			<s:DropDownList id="cmbDetalleExpAnno" x="8" y="21" width="66"
+						alternatingItemColors="[#F7F7F7, white]"
+						enabled="{esNuevo}"
+						dataProvider="{expAnnoDetalleArray}"/>
+			<s:Label x="8" y="10" text="Año"/>
+			<s:Label x="84.7" y="10.3" text="Número"/>
+			<s:Label id="txtDetalleExpNum" x="85" y="27" width="46" height="15"
+					 textAlign="center"
+					 text="{model.expedienteDetalle.expedienteDetalleVO.expNum}"/>
+			<s:Label x="142.7" y="9.95" text="Nombre Pax"/>
+			<s:TextInput id="txtDetallePaxNombre" x="143" y="20.65" width="396"
+						 typographicCase="uppercase"
+						 text="{model.expedienteDetalle.expedienteDetalleVO.paxNombre}"/>
+			<s:Label x="573.7" y="10.3" text="# Pax"/>
+			<s:NumericStepper id="txtDetallePaxNum" x="574" y="21" width="46"
+							  stepSize="1"
+							  maximum="999"
+							  valueParseFunction="myParseFunc"
+							  value="{model.expedienteDetalle.expedienteDetalleVO.paxNum}"/>
+			<s:Label x="6.6" y="60.25" text="Excursion IT"/>
+			<s:TextInput id="txtDetalleExcursion" x="7" y="71" width="380"
+						 text="{model.expedienteDetalle.expedienteDetalleVO.excursion}"
+						 typographicCase="uppercase"/>
+			<s:Label x="417.7" y="59.95" text="Reserva #"/>
+			<s:TextInput id="txtDetalleReservaNum" x="418" y="70.65" width="121"
+						 text="{model.expedienteDetalle.expedienteDetalleVO.reservaNum}"
+						 typographicCase="uppercase"/>
+			<s:Label x="572.7" y="60.3" text="Confirmacion #"/>
+			<s:TextInput id="txtDetalleConfirmacionNum" x="573" y="71" width="117"
+						 text="{model.expedienteDetalle.expedienteDetalleVO.confirmacionNum}"
+						 typographicCase="uppercase"/>
+			<s:Label x="6.6" y="110.25" text="Agencia"/>
+			<s:ComboBox id="cmbDetalleAgencia" x="7" y="121" width="382"
+						typographicCase="uppercase"
+						alternatingItemColors="[#F7F7F7, white]"
+						labelField="Nombre"
+						dataProvider="{model.agenciasNombre.agenciasNombreVO.datagridInfo}"/>
+			<s:Label x="422.7" y="109.95" text="Vouchers"/>
+			<s:Label x="423" y="120.65" width="456"
+						 text="{model.expedienteDetalle.expedienteDetalleVO.listaVouchers}"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="Costos" width="100%" height="100%">
+			<s:DataGrid id="datagridCosto" x="10" y="1" height="102" width="409"
+						 verticalScrollPolicy="on"
+						 alternatingRowColors="[#F7F7F7, white]"
+						 doubleClickEnabled="true" doubleClick="popupExpedienteCostos()"
+						 dataProvider="{model.expedienteCostos.expedienteCostosVO.datagridInfo}">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn headerText="Operador" minWidth="240"
+										   dataField="OpNombre"/>
+						<s:GridColumn headerText="Costo" minWidth="70"
+										   sortCompareFunction="sortCompareNumeric"
+										   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+										   dataField="Costo"/>
+						<s:GridColumn headerText="ChequeNum" minWidth="80"
+									  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+										   dataField="ChequeNum"/>
+					</s:ArrayList>
+				</s:columns>
+			</s:DataGrid>
+			<s:DataGrid id="datagridCostoFactura" x="10" y="103" height="102" width="491"
+						 verticalScrollPolicy="on"
+						 alternatingRowColors="[#F7F7F7, white]"
+						 dataProvider="{model.expedienteCostos.expedienteCostosVO.datagridFacturaCostoInfo}">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn headerText="Agente" minWidth="240"
+										   dataField="AgntNombre"/>
+						<s:GridColumn headerText="Costo" minWidth="70"
+										   sortCompareFunction="sortCompareNumeric"
+										   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+										   dataField="Costo"/>
+						<s:GridColumn headerText="ChequeNum" minWidth="80"
+									  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+										   dataField="ChequeNum"/>
+						<s:GridColumn headerText="Fact. #" minWidth="80"
+										   sortCompareFunction="sortCompareNumeric"
+										   dataField="FacNumId"/>
+					</s:ArrayList>
+				</s:columns>
+			</s:DataGrid>
+			<s:DataGrid id="datagridFacturas" x="512" y="-1" height="128" width="369"
+						 verticalScrollPolicy="on"
+						 alternatingRowColors="[#F7F7F7, white]"
+						 doubleClickEnabled="true" doubleClick="popupFacturaCostos()"
+						 dataProvider="{model.expedienteDetalle.expedienteDetalleVO.datagridInfo}">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn headerText="Fact #" minWidth="60"
+										   sortCompareFunction="sortCompareNumeric"
+										   dataField="FacNumId"/>
+						<s:GridColumn headerText="Estado" minWidth="55"
+										   dataField="Estado"/>
+						<s:GridColumn headerText="Fecha" minWidth="75"
+										   dataField="FechaString"/>
+						<s:GridColumn headerText="Total" minWidth="85"
+										   sortCompareFunction="sortCompareNumeric"
+										   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+										   dataField="Total"/>
+						<s:GridColumn headerText="T. C." minWidth="60"
+										   sortCompareFunction="sortCompareNumeric"
+										   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+										   dataField="TipoCambio"/>
+					</s:ArrayList>
+				</s:columns>
+			</s:DataGrid>
+			<s:Label x="719" y="182" width="80" text="Utilidad" textAlign="right"/>
+			<s:Label x="719" y="162" width="80" text="Total Costos" textAlign="right"/>
+			<s:Label x="719" y="142" width="80" text="Total Facturas" textAlign="right"/>
+			<s:Label x="789" y="182" width="80" textAlign="right" 
+					 text="{model.expedienteDetalle.expedienteDetalleVO.utilidad}"/>
+			<s:Label x="789" y="162" width="80" textAlign="right" 
+					 text="{model.expedienteDetalle.expedienteDetalleVO.sumCosto}"/>
+			<s:Label x="789" y="142" width="80" textAlign="right" 
+					 text="{model.expedienteDetalle.expedienteDetalleVO.sumTotal}"/>
+		</s:NavigatorContent>
+	</mx:TabNavigator>
+	<s:Button id="btnNuevo" x="910" y="344" width="90" label="Nuevo" 
+			  enabled="{!this.esNuevo}"
+			  click="nuevoExpediente()"/>
+	<s:Button id="btnGuardar" x="910" y="374" width="90" label="Guardar" 
+			  click="updateExpediente()"/>
+	<s:Button id="btnCancelar" x="910" y="403" width="90" label="Cancelar" 
+			  click="selectExpediente()"/>
+</s:Panel>

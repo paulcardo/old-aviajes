@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 title="Agencias"
+		 creationComplete="init()"
+		 width="1014" height="610">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[  
+			import com.adobe.cairngorm.control.CairngormEventDispatcher;
+			import com.adobe.cairngorm.project.event.AgenciasNombreEvent;
+			import com.adobe.cairngorm.project.event.CounterEvent;
+			import com.adobe.cairngorm.project.event.AgenciaDetalleEvent;
+			import com.adobe.cairngorm.project.event.AgenciaDetalleUpdateEvent;
+			import com.adobe.cairngorm.project.event.AgenciasEvent;
+			import com.adobe.cairngorm.project.model.Agencias;
+			import com.adobe.cairngorm.project.model.ModelLocator;
+			import com.adobe.cairngorm.project.vo.*;
+			import mx.collections.ArrayCollection;
+			// export to CSV
+			import com.adobe.cairngorm.project.utils.DataExporter;
+
+			
+			[Bindable]
+			public var model : ModelLocator = ModelLocator.getInstance();
+			
+			[Bindable]
+			public var esNuevo : Boolean = false;
+			
+			public function init() : void
+			{
+			}	
+				
+			public function agenciasSearch() : void
+			{
+				var agenciasVO : AgenciasVO = new AgenciasVO();
+				agenciasVO.nombre = txtOperador.text;
+				model.agencias.agenciasVO = agenciasVO;
+				var event : AgenciasEvent = new AgenciasEvent( agenciasVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+			
+			private function selectAgencia():void
+			{
+				var i:int;
+				var agenciaDetalleVO : AgenciaDetalleVO = new AgenciaDetalleVO();
+				model.agenciaDetalle.agenciaDetalleVO = new AgenciaDetalleVO(); // reset
+				this.esNuevo = false;
+				if ( datagrid.selectedIndex > -1 ){
+					agenciaDetalleVO.agId = datagrid.selectedItem.AgId;
+					model.agenciaDetalle.agenciaDetalleVO = agenciaDetalleVO;
+					var event : AgenciaDetalleEvent = new AgenciaDetalleEvent( agenciaDetalleVO );
+					CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				}
+			}
+			
+			private function nuevoAgencia():void
+			{
+				var i:int;
+				this.esNuevo = true;
+				model.agenciaDetalle.agenciaDetalleVO = new AgenciaDetalleVO();
+			}
+			
+			private function updateAgencia():void
+			{
+				var agenciaDetalleVO : AgenciaDetalleVO = new AgenciaDetalleVO();
+				if ( this.esNuevo ){
+					agenciaDetalleVO.agId = -1;
+				} else {
+					agenciaDetalleVO.agId = datagrid.selectedItem.AgId;
+				}
+				agenciaDetalleVO.nombre = txtDetalleNombre.text.toUpperCase();
+				agenciaDetalleVO.direccion = txtDetalleDireccion.text.toUpperCase();
+				agenciaDetalleVO.telefono = txtDetalleTelefono.text.toUpperCase();
+				agenciaDetalleVO.telefono2 = txtDetalleTelefono2.text.toUpperCase();
+				agenciaDetalleVO.fax = txtDetalleFax.text.toUpperCase();
+				agenciaDetalleVO.email = txtDetalleEmail.text.toUpperCase();
+				agenciaDetalleVO.contacto = txtDetalleContacto.text.toUpperCase();
+				
+				model.agenciaDetalle.agenciaDetalleVO = agenciaDetalleVO;
+				var event : AgenciaDetalleUpdateEvent = new AgenciaDetalleUpdateEvent( agenciaDetalleVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				this.esNuevo = false;
+			}
+
+			private function exportCSV(dg:DataGrid):void
+			{
+				var arrayTotals : Array = new Array();
+				arrayTotals.push("");
+				DataExporter.exportGridAndTotalsCSV(dg, arrayTotals);
+			}	
+			
+		]]>
+	</fx:Script>
+	
+	<s:Label x="10.3" y="9.95" text="Agencia"/>
+	<s:TextInput id="txtOperador" x="10.65" y="20.65" width="251"
+				 typographicCase="uppercase"/>
+	<s:Button x="273" y="20" label="Buscar"
+			  click="agenciasSearch()"/>
+	<s:Button x="931" y="20" label="Exportar"
+			  enabled="{datagrid.dataProvider != null}" click="exportCSV(datagrid)"/>
+	
+	<s:DataGrid id="datagrid" x="10" y="50.35" width="992" height="376"
+				 verticalScrollPolicy="on"
+				 alternatingRowColors="[#F7F7F7, white]"
+				 selectionChange="selectAgencia()"
+				 dataProvider="{model.agencias.agenciasVO.datagridInfo}">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn headerText="Nombre" minWidth="250" 
+							  dataField="Nombre"/>
+				<s:GridColumn headerText="Teléfono" minWidth="240"
+								   dataField="Telefono"/>
+				<s:GridColumn headerText="Teléfono 2" minWidth="120"
+								   dataField="Telefono2"/>
+				<s:GridColumn headerText="Fax" minWidth="120"
+								   dataField="Fax"/>
+				<s:GridColumn headerText="Email" minWidth="240"
+								   dataField="Email"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+
+
+	<s:TextInput id="txtDetalleNombre" x="10" y="444" width="563"
+				 text="{model.agenciaDetalle.agenciaDetalleVO.nombre}"
+				 typographicCase="uppercase"/>
+	<s:Label x="10" y="434" text="Nombre"/>
+	<s:Label x="579.7" y="435.3" text="Teléfono"/>
+	<s:TextInput id="txtDetalleTelefono" x="580" y="446" width="207"
+				 text="{model.agenciaDetalle.agenciaDetalleVO.telefono}"
+				 typographicCase="uppercase"/>
+	<s:Label x="794.7" y="434.95" text="Teléfono 2"/>
+	<s:TextInput id="txtDetalleTelefono2" x="795" y="445.65" width="100"
+				 text="{model.agenciaDetalle.agenciaDetalleVO.telefono2}"
+				 typographicCase="uppercase"/>
+
+	<s:Label x="10.6" y="484.25" text="Dirección"/>
+	<s:TextInput id="txtDetalleDireccion" x="11" y="495" width="776"
+				 text="{model.agenciaDetalle.agenciaDetalleVO.direccion}"
+				 typographicCase="uppercase"/>
+	<s:Label x="794.7" y="484.3" text="Fax"/>
+	<s:TextInput id="txtDetalleFax" x="795" y="495" width="100"
+				 text="{model.agenciaDetalle.agenciaDetalleVO.fax}"
+				 typographicCase="uppercase"/>
+	
+	<s:Label x="10.6" y="534.25" text="Email"/>
+	<s:TextInput id="txtDetalleEmail" x="11" y="545" width="375"
+				 text="{model.agenciaDetalle.agenciaDetalleVO.email}"
+				 typographicCase="uppercase"/>
+	<s:Label x="394.7" y="533.95" text="Contacto"/>
+	<s:TextInput id="txtDetalleContacto" x="394" y="544.65" width="288"
+				 text="{model.agenciaDetalle.agenciaDetalleVO.contacto}"
+				 typographicCase="uppercase"/>
+	
+	<s:Button id="btnNuevo" x="909" y="438" width="90" label="Nuevo" 
+			  enabled="{!this.esNuevo}"
+			  click="nuevoAgencia()"/>
+	<s:Button id="btnGuardar" x="909" y="468" width="90" label="Guardar" 
+			  click="updateAgencia()"/>
+	<s:Button id="btnCancelar" x="909" y="497" width="90" label="Cancelar" 
+			  click="selectAgencia()"/>
+</s:Panel>

@@ -1,0 +1,484 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 title="Vouchers"
+		 creationComplete="init()"
+		 width="800" height="610">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[  
+			import com.adobe.cairngorm.control.CairngormEventDispatcher;
+			import com.adobe.cairngorm.project.event.AgenciasNombreEvent;
+			import com.adobe.cairngorm.project.event.CounterEvent;
+			import com.adobe.cairngorm.project.event.VoucherDetalleEvent;
+			import com.adobe.cairngorm.project.event.VoucherDetalleUpdateEvent;
+			import com.adobe.cairngorm.project.event.VouchersEvent;
+			import com.adobe.cairngorm.project.model.ModelLocator;
+			import com.adobe.cairngorm.project.model.Vouchers;
+			import com.adobe.cairngorm.project.vo.*;
+			
+			import mx.collections.ArrayCollection;
+			import mx.utils.ObjectUtil;
+			
+			import org.alivepdf.colors.RGBColor;
+			import org.alivepdf.display.Display;
+			import org.alivepdf.fonts.CoreFont;
+			import org.alivepdf.fonts.FontFamily;
+			import org.alivepdf.fonts.Style;
+			import org.alivepdf.images.ColorSpace;
+			import org.alivepdf.layout.Align;
+			import org.alivepdf.layout.Orientation;
+			import org.alivepdf.layout.Size;
+			import org.alivepdf.layout.Unit;
+			import org.alivepdf.pages.Page;
+			import org.alivepdf.pdf.PDF;
+			import org.alivepdf.saving.Download;
+			import org.alivepdf.saving.Method;
+			
+			protected var claimPDF:PDF;
+			
+			[Embed(source="assets/logo_empresaBN.jpg", mimeType="application/octet-stream" )]
+			protected var jpgBytes:Class;
+			
+			[Bindable]
+			public var model : ModelLocator = ModelLocator.getInstance();
+			
+			[Bindable]
+			public var expAnnoArray : ArrayCollection = new ArrayCollection;
+			[Bindable]
+			public var expAnnoDetalleArray : ArrayCollection = new ArrayCollection;
+			[Bindable]
+			public var esNuevo : Boolean = false;
+			
+			public var Anno :int;
+			
+			public function init() : void
+			{
+				var i : int;
+				var today:Date= new Date();
+				
+				expAnnoArray.addItem('Todos');
+				// datos para combos Años
+				this.Anno = today.getFullYear();
+				for (i = this.Anno + 1; i > 2000; i--) {
+					expAnnoArray.addItem( i.toString() );
+					expAnnoDetalleArray.addItem( i.toString() );
+				}
+				cmbExpAnno.selectedIndex = 2;
+				//
+				tabNavigator.selectedIndex = 0;
+				model.vouchers.vouchersVO  = new VouchersVO();// reset
+			}	
+				
+			public function vouchersSearch() : void
+			{
+				var vouchersVO : VouchersVO = new VouchersVO();
+				vouchersVO.vouId = txtVouId.text;
+				vouchersVO.expAnno = cmbExpAnno.selectedItem;
+				vouchersVO.expNum = txtExpNum.text;
+				vouchersVO.operadorNombre = txtOperador.text;
+				vouchersVO.paxNombre = txtPax.text;
+				vouchersVO.expAnnoIndex = cmbExpAnno.selectedIndex;
+				model.vouchers.vouchersVO = vouchersVO;
+				var event : VouchersEvent = new VouchersEvent( vouchersVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+			
+			private function selectVoucher():void
+			{
+				var i:int;
+				var voucherDetalleVO : VoucherDetalleVO = new VoucherDetalleVO();
+				model.voucherDetalle.voucherDetalleVO = new VoucherDetalleVO(); // reset
+				this.esNuevo = false;
+				if ( datagrid.selectedIndex > -1 ){
+					voucherDetalleVO.vouId = datagrid.selectedItem.VouId;
+					model.voucherDetalle.voucherDetalleVO = voucherDetalleVO;
+					var event : VoucherDetalleEvent = new VoucherDetalleEvent( voucherDetalleVO );
+					CairngormEventDispatcher.getInstance().dispatchEvent( event );
+					// assign
+					voucherDetalleVO.expAnno = datagrid.selectedItem.ExpAnno;
+					voucherDetalleVO.expNum = datagrid.selectedItem.ExpNum;
+					// assign ExpAnno
+					for (i = 0; i < cmbDetalleExpAnno.dataProvider.length; i++) {
+						if ( cmbDetalleExpAnno.dataProvider[i] == datagrid.selectedItem.ExpAnno ){
+							cmbDetalleExpAnno.selectedIndex = i;
+							break;
+						}
+					}
+				}
+			}
+			
+			private function nuevoVoucher():void
+			{
+				var i:int;
+				this.esNuevo = true;
+
+				// get counter Voucher
+//				var counterVO : CounterVO = new CounterVO();
+//				counterVO.SeqName = 'Voucher';
+//				model.counter.counterVO = counterVO;
+//				var event : CounterEvent = new CounterEvent( counterVO );
+//				CairngormEventDispatcher.getInstance().dispatchEvent( event );		
+				// set Anno
+				model.voucherDetalle.voucherDetalleVO = new VoucherDetalleVO();
+				for (i = 0; i < cmbDetalleExpAnno.dataProvider.length; i++) {
+					if ( cmbDetalleExpAnno.dataProvider[i] == this.Anno ){
+						cmbDetalleExpAnno.selectedIndex = i;
+						break;
+					}
+				}
+				// set combo estado = activo
+				cmbDetalleEstado.selectedIndex = 1;
+				// poner la fecha de hoy
+				dfFecha.selectedDate = new Date;
+			}
+			
+			private function updateVoucher():void
+			{
+				var voucherDetalleVO : VoucherDetalleVO = new VoucherDetalleVO();
+				voucherDetalleVO.vouId = txtDetalleVouId.text;
+				voucherDetalleVO.expAnno = cmbDetalleExpAnno.selectedItem;
+				voucherDetalleVO.expNum = txtDetalleExpNum.value;
+				voucherDetalleVO.agente = txtDetalleAgente.text.toUpperCase();
+				voucherDetalleVO.direccion = txtDetalleDireccion.text.toUpperCase();
+				voucherDetalleVO.paxNombre = txtDetallePaxNombre.text.toUpperCase();
+				voucherDetalleVO.paxNum = txtDetallePaxNum.value;
+				voucherDetalleVO.confirmacionNum = txtDetalleConfirmacionNum.text.toUpperCase();
+				voucherDetalleVO.servicios = txtDetalleServicios.text.toUpperCase();
+				voucherDetalleVO.estId = cmbDetalleEstado.selectedItem.EstId;
+				voucherDetalleVO.fecha = dfFecha.selectedDate;
+				// set fecha String format yyy-mm-dd
+				var intDate:int;
+				var strDate:String;
+				var intMonth:int;
+				var strMonth:String;
+				intMonth = voucherDetalleVO.fecha.month + 1;
+				if (intMonth < 10){
+					strMonth = '0' + intMonth.toString();
+				} else {
+					strMonth = intMonth.toString();
+				}
+				intDate = voucherDetalleVO.fecha.date;
+				if (intDate < 10){
+					strDate = '0' + intDate.toString();
+				} else {
+					strDate = intDate.toString();
+				}
+				voucherDetalleVO.fechaString = voucherDetalleVO.fecha.fullYear + '-' + strMonth + '-' + strDate;
+				// Combo Usuarios
+				if ( cmbDetalleUsuario.selectedIndex == spark.components.ComboBox.CUSTOM_SELECTED_ITEM ){
+					voucherDetalleVO.usrNombre = cmbDetalleUsuario.selectedItem.toUpperCase();
+				} else { // it is in the list
+					voucherDetalleVO.usrNombre = cmbDetalleUsuario.selectedItem.Nombre.toUpperCase();
+				}
+				voucherDetalleVO.usrIndex = cmbDetalleUsuario.selectedIndex;
+				// Combo Operador
+				if ( cmbDetalleOperador.selectedIndex == spark.components.ComboBox.CUSTOM_SELECTED_ITEM ){
+					voucherDetalleVO.opNombre = cmbDetalleOperador.selectedItem.toUpperCase();
+				} else { // it is in the list
+					voucherDetalleVO.opNombre = cmbDetalleOperador.selectedItem.Nombre.toUpperCase();
+				}
+				voucherDetalleVO.opIndex = cmbDetalleOperador.selectedIndex;
+
+				model.voucherDetalle.voucherDetalleVO = voucherDetalleVO;
+				var event : VoucherDetalleUpdateEvent = new VoucherDetalleUpdateEvent( voucherDetalleVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				this.esNuevo = false;
+			}
+			
+			// Crea la Voucher en PDF
+			protected function savePDF():void
+			{
+				var opNombre:String;
+				
+				var agNombre:String;
+				var fechaString:String;
+				var agntNombre:String;
+				var usrNombre:String;
+				var voucherString:String;
+				// Combo Operador
+				if ( cmbDetalleOperador.selectedIndex == spark.components.ComboBox.CUSTOM_SELECTED_ITEM ){
+					opNombre = cmbDetalleOperador.selectedItem.toUpperCase();
+				} else { // it is in the list
+					opNombre = cmbDetalleOperador.selectedItem.Nombre.toUpperCase();
+				}
+				// Combo Usuarios
+				if ( cmbDetalleUsuario.selectedIndex == spark.components.ComboBox.CUSTOM_SELECTED_ITEM ){
+					usrNombre = cmbDetalleUsuario.selectedItem.toUpperCase();
+				} else { // it is in the list
+					usrNombre = cmbDetalleUsuario.selectedItem.Nombre.toUpperCase();
+				}
+				// set fecha String format yyy-mm-dd
+				var intDate:int;
+				var strDate:String;
+				var strMonth:String;
+				switch (dfFecha.selectedDate.month){
+					case 0: strMonth = 'ENERO';
+						break;
+					case 1: strMonth = 'FEBRERO';
+						break;
+					case 2: strMonth = 'MARZO';
+						break;
+					case 3: strMonth = 'ABRIL';
+						break;
+					case 4: strMonth = 'MAYO';
+						break;
+					case 5: strMonth = 'JUNIO';
+						break;
+					case 6: strMonth = 'JULIO';
+						break;
+					case 7: strMonth = 'AGOSTO';
+						break;
+					case 8: strMonth = 'SEPTIEMBRE';
+						break;
+					case 9: strMonth = 'OCTUBRE';
+						break;
+					case 10: strMonth = 'NOVIEMBRE';
+						break;
+					case 11: strMonth = 'DICIEMBRE';
+					break;
+				}
+				intDate = dfFecha.selectedDate.date;
+				if (intDate < 10){
+					strDate = '0' + intDate.toString();
+				} else {
+					strDate = intDate.toString();
+				}
+				fechaString = strDate + " " + strMonth + " " + dfFecha.selectedDate.fullYear;
+				//
+				//Factura numero con ceros a la izquierda
+				voucherString = '0000000' + this.txtDetalleVouId.text; // relenar ceros a la izquierda
+				voucherString = voucherString.substr( -8, voucherString.length ); // 8 digitos
+				
+				claimPDF = new PDF(Orientation.PORTRAIT, Unit.MM, Size.LETTER);
+				claimPDF.setDisplayMode (Display.FULL_WIDTH); 
+				claimPDF.addPage();
+				
+				/* ****  HEADER  **** */
+				// logo image
+				claimPDF.addImageStream( new jpgBytes() as ByteArray, ColorSpace.DEVICE_RGB, null,10,10 );
+				
+				claimPDF.setFont(new CoreFont( FontFamily.ARIAL ), 8);
+				claimPDF.setXY(85,22);
+				claimPDF.addMultiCell(70,3,"Sistemas de Viajes y Excursiones Turísticas S.A." + '\n' +
+					"Cédula Jurídica # 3-101-141548" + '\n' +
+					"Tel.: (506) 2255-6565 / Fax: (506) 2256-3180" + '\n' +
+					"P.O. Box: 8613-1000, San José, Costa Rica" + '\n' +
+					"Dirección: Del edificio Colon 125 mts Norte," + '\n' +
+					"frente a Rios Tropicales, Paseo Colon" + '\n' +
+					"E-mail: tacavacaciones@sivetur.com" , 0, Align.CENTER);
+				
+				claimPDF.setFont(new CoreFont( FontFamily.ARIAL ), 10);
+				claimPDF.addText("VOUCHER Nº " + voucherString,160,33);
+				
+				/* ****  BODY  **** */
+				
+				// line separator				
+				claimPDF.moveTo ( 20, 48 );
+				claimPDF.lineTo ( 198, 48 );
+				claimPDF.end();
+				
+				claimPDF.setFont(new CoreFont( FontFamily.ARIAL ), 10);
+				claimPDF.addText("Exp Nº " + cmbDetalleExpAnno.selectedItem + " - " + txtDetalleExpNum.value,20,55);
+				claimPDF.addText("Fecha " + fechaString,150,55);
+				claimPDF.addText("Operador " + opNombre,20,60);
+				claimPDF.addText("Atención " + txtDetalleAgente.text,120,60);
+				claimPDF.addText("Dirección " + txtDetalleDireccion.text.toUpperCase(),20,65);
+				claimPDF.addText("Pax " + txtDetallePaxNombre.text.toUpperCase(),20,70);
+				claimPDF.addText("Pax # " + txtDetallePaxNum.value,120,70);
+				claimPDF.addText("Confirmación # " + txtDetalleConfirmacionNum.text,150,70);
+				// line separator				
+				claimPDF.moveTo ( 20, 74 );
+				claimPDF.lineTo ( 198, 74 );
+				claimPDF.end();
+				
+				claimPDF.setFont(new CoreFont( FontFamily.COURIER ), 11);
+				claimPDF.setXY(20,80);
+				claimPDF.addMultiCell(180,4,txtDetalleServicios.text,0,Align.LEFT);
+
+				/* ****  FOOTER  **** */
+				
+				// line separator				
+				claimPDF.moveTo ( 20, 254 );
+				claimPDF.lineTo ( 198, 254 );
+				claimPDF.end();
+				
+				claimPDF.setFont(new CoreFont( FontFamily.ARIAL ), 10);
+				claimPDF.addText("Hecho por " + usrNombre,20,260);
+				
+				// HERE IS HOW TO SAVE FROM FLASH PLAYER 10 OR GREATER. THIS IS USED FOR THIS SAMPLE.
+				var bytes:ByteArray = claimPDF.save(Method.LOCAL);
+				var f:FileReference = new FileReference();
+				f.save(bytes,"Voucher_" + voucherString + ".pdf");
+			}
+			
+			private function operatorChanged():void
+			{
+				txtDetalleDireccion.text = model.operadoresNombre.operadoresNombreVO.datagridInfo[cmbDetalleOperador.selectedIndex].Direccion;
+				if (txtDetalleAgente.text == ''){
+					txtDetalleAgente.text = model.operadoresNombre.operadoresNombreVO.datagridInfo[cmbDetalleOperador.selectedIndex].Contacto;
+				}
+			}
+			
+			// Sorts for the numeric columns
+			private function sortCompareNumericExpNum(itemA:Object, itemB:Object, gc:GridColumn):int 
+			{
+				return ObjectUtil.numericCompare(itemA.ExpNum,itemB.ExpNum);
+			}
+			
+			private function sortCompareNumericVouId(itemA:Object, itemB:Object, gc:GridColumn):int 
+			{
+				return ObjectUtil.numericCompare(itemA.VouId,itemB.VouId);
+			}
+			
+			private function myParseFunc(val:String):Number 
+			{ 
+				// used in numericStepper to mandatory use "." as decimal point
+				var stringVal:String = val.replace(",","."); 
+				return Number(stringVal);     
+			} 
+		]]>
+	</fx:Script>
+	
+	<s:Label x="85" y="10" text="Año"/>
+	<s:Label x="161.7" y="10.3" text="Exp. #"/>
+	<s:Label x="9.65" y="10.3" text="Voucher #"/>
+	<s:Label x="470.7" y="9.95" text="Pasajeros"/>
+	<s:Label x="220.25" y="8.95" text="Operador"/>
+	
+	<s:TextInput id="txtVouId" x="10" y="23" width="67"
+				 restrict="0-9"
+				 typographicCase="uppercase"/>
+	<s:DropDownList id="cmbExpAnno" x="85" y="22" width="71"
+				alternatingItemColors="[#F7F7F7, white]"
+				selectedIndex="{model.vouchers.vouchersVO.expAnnoIndex}"
+				dataProvider="{expAnnoArray}"/>
+	<s:TextInput id="txtExpNum" x="162" y="21" width="46"
+				 text="{model.vouchers.vouchersVO.expNum}"
+				 restrict="0-9"/>
+	<s:TextInput id="txtOperador" x="220.65" y="19.65" width="242"
+				 typographicCase="uppercase"/>
+	<s:TextInput id="txtPax" x="471" y="20.65" width="239"
+				 typographicCase="uppercase"/>
+	<s:Button x="718" y="20" label="Buscar"
+			  click="vouchersSearch()"/>
+	
+	<s:DataGrid id="datagrid" x="10" y="50.35" width="778" height="260"
+				 verticalScrollPolicy="on"
+				 alternatingRowColors="[#F7F7F7, white]"
+				 selectionChange="selectVoucher()"
+				 dataProvider="{model.vouchers.vouchersVO.datagridInfo}">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn headerText="Vou #" minWidth="60"
+							  sortCompareFunction="sortCompareNumericVouId"   
+							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
+							  dataField="VouId"/>
+				<s:GridColumn headerText="Año" minWidth="45"
+							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
+								   dataField="ExpAnno"/>
+				<s:GridColumn headerText="Exp Num" minWidth="65"
+								   sortCompareFunction="sortCompareNumericExpNum"
+								   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
+								   dataField="ExpNum"/>
+				<s:GridColumn headerText="Estado" minWidth="55"
+								   dataField="Estado"/>
+				<s:GridColumn headerText="Fecha" minWidth="75"
+								   dataField="FechaString"/>
+				<s:GridColumn headerText="Operador" minWidth="220"
+								   dataField="OpNombre"/>
+				<s:GridColumn headerText="Nombre de Pasajeros" minWidth="220"
+								   dataField="PaxNombre"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+	
+	<mx:TabNavigator id="tabNavigator" x="10" y="322" width="680" height="245" selectedIndex="1">
+		<s:NavigatorContent label="Voucher" width="100%" height="100%">
+			<s:Label x="8.65" y="10.3" text="Voucher #"/>
+			<s:Label id="txtDetalleVouId" x="9" y="24" width="65"
+						 text="{model.voucherDetalle.voucherDetalleVO.vouId}" height="16"/>
+			<s:DropDownList id="cmbDetalleExpAnno" x="86" y="21" width="66"
+						alternatingItemColors="[#F7F7F7, white]"
+						dataProvider="{expAnnoDetalleArray}"/>
+			<s:Label x="86" y="10" text="Año"/>
+			<s:Label x="162.7" y="10.3" text="Exp. #"/>
+			<s:NumericStepper id="txtDetalleExpNum" x="160" y="21" width="60"
+							  stepSize="1"
+							  maximum="999999"
+							  valueParseFunction="myParseFunc"
+							  value="{model.voucherDetalle.voucherDetalleVO.expNum}"/>
+			<s:Label x="227.6" y="9.25" text="Estado"/>
+			<s:ComboBox id="cmbDetalleEstado" x="228" y="20" width="107"
+						typographicCase="uppercase"
+						alternatingItemColors="[#F7F7F7, white]"
+						labelField="Nombre"
+						selectedIndex="{model.voucherDetalle.voucherDetalleVO.estId}"
+						dataProvider="{model.estadosNombre.estadosNombreVO.datagridInfo}"/>
+			<s:Label x="345.7" y="10.95" text="Fecha"/>
+			<mx:DateField id="dfFecha" x="346" y="21"
+						  selectedDate="{model.voucherDetalle.voucherDetalleVO.fecha}"/>
+			
+			<s:TextInput id="txtDetalleAgente" x="7" y="71" width="303"
+						 text="{model.voucherDetalle.voucherDetalleVO.agente}"
+						 typographicCase="uppercase"/>
+			<s:Label x="6.6" y="60.25" text="Atencion"/>
+			<s:Label x="322.7" y="59.95" text="Operador"/>
+			<s:ComboBox id="cmbDetalleOperador"  x="323" y="70.65" width="345"
+						typographicCase="uppercase"
+						alternatingItemColors="[#F7F7F7, white]"
+						labelField="Nombre"
+						selectedIndex="{model.voucherDetalle.voucherDetalleVO.opIndex}"
+						change="operatorChanged()"
+						dataProvider="{model.operadoresNombre.operadoresNombreVO.datagridInfo}"/>
+			
+			<s:Label x="6.6" y="110.25" text="Direccion"/>
+			<s:TextInput id="txtDetalleDireccion" x="7" y="121" width="661"
+						 text="{model.voucherDetalle.voucherDetalleVO.direccion}"
+						 typographicCase="uppercase"/>
+			
+			<s:Label x="10.7" y="168.95" text="Nombre Pax"/>
+			<s:TextInput id="txtDetallePaxNombre" x="11" y="179.65" width="254"
+						 typographicCase="uppercase"
+						 text="{model.voucherDetalle.voucherDetalleVO.paxNombre}"/>
+			<s:Label x="275.7" y="169.3" text="# Pax"/>
+			<s:NumericStepper id="txtDetallePaxNum" x="276" y="180" width="46"
+							  stepSize="1"
+							  maximum="999"
+							  valueParseFunction="myParseFunc"
+							  value="{model.voucherDetalle.voucherDetalleVO.paxNum}"/>
+			<s:Label x="326.7" y="169.3" text="Confirmacion #"/>
+			<s:TextInput id="txtDetalleConfirmacionNum" x="327" y="180" width="90"
+						 text="{model.voucherDetalle.voucherDetalleVO.confirmacionNum}"
+						 typographicCase="uppercase"/>
+			<s:Label x="428.55" y="167.25" text="Autorizado por"/>
+			<s:ComboBox id="cmbDetalleUsuario" x="430" y="178" width="238"
+						typographicCase="uppercase"
+						alternatingItemColors="[#F7F7F7, white]"
+						labelField="Nombre"
+						selectedIndex="{model.voucherDetalle.voucherDetalleVO.usrIndex}"
+						dataProvider="{model.usuarios.usuariosVO.datagridInfo}"/>
+
+		</s:NavigatorContent>
+		<s:NavigatorContent label="Servicios" width="100%" height="100%">
+			<s:TextArea id="txtDetalleServicios" x="60" y="0" width="555" height="201" 
+						verticalScrollPolicy="on"
+						typographicCase="uppercase" fontFamily="Courier New" fontSize="12"
+						text="{model.voucherDetalle.voucherDetalleVO.servicios}"/>
+		</s:NavigatorContent>
+	</mx:TabNavigator>
+	
+	<s:Button id="btnNuevo" x="698" y="344" width="90" label="Nuevo" 
+			  enabled="{!this.esNuevo}"
+			  click="nuevoVoucher()"/>
+	<s:Button id="btnGuardar" x="698" y="374" width="90" label="Guardar" 
+			  click="updateVoucher()"/>
+	<s:Button id="btnCancelar" x="698" y="403" width="90" label="Cancelar" 
+			  click="selectVoucher()"/>
+	<s:Button id="btnImprimir" x="698" y="463" width="90" label="Imprimir" 
+			  click="savePDF()"/>
+</s:Panel>

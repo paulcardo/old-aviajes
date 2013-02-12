@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 title="Expediente Costos"
+		 creationComplete="reset()"
+		 close="handleCloseEvent()"
+		 width="638" height="268">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[  
+			import com.adobe.cairngorm.control.CairngormEventDispatcher;
+			import com.adobe.cairngorm.project.event.CounterEvent;
+			import com.adobe.cairngorm.project.event.ExpedienteCostoDetalleDeleteEvent;
+			import com.adobe.cairngorm.project.event.ExpedienteCostoDetalleUpdateEvent;
+			import com.adobe.cairngorm.project.model.Agentes;
+			import com.adobe.cairngorm.project.model.ModelLocator;
+			import com.adobe.cairngorm.project.vo.*;
+			import mx.collections.ArrayCollection;
+			import mx.managers.PopUpManager;
+			import mx.utils.ObjectUtil;
+			
+			[Bindable]
+			public var model : ModelLocator = ModelLocator.getInstance();
+			
+			[Bindable]
+			public var esNuevo : Boolean = false;
+			
+			private var expedienteCostoDetalleVO : ExpedienteCostoDetalleVO;
+			
+			// Handle the close button and Cancel button.
+			private function handleCloseEvent():void {
+				PopUpManager.removePopUp(this);
+			}  	
+				
+			private function reset():void {
+				// valores de la expediente
+				expedienteCostoDetalleVO = new ExpedienteCostoDetalleVO();
+				expedienteCostoDetalleVO.expAnno = model.expedienteDetalle.expedienteDetalleVO.expAnno;
+				expedienteCostoDetalleVO.expNum = model.expedienteDetalle.expedienteDetalleVO.expNum;
+				model.expedienteCostoDetalleUpdate.expedienteCostoDetalleVO = expedienteCostoDetalleVO;
+			}  
+			
+			private function selectCosto():void
+			{
+				var i:int;
+				this.esNuevo = false;
+				reset(); // reset values
+				if ( datagrid.selectedIndex > -1 ){
+					expedienteCostoDetalleVO.costoId = datagrid.selectedItem.CostoId;
+					expedienteCostoDetalleVO.opNombre = datagrid.selectedItem.OpNombre;
+					expedienteCostoDetalleVO.costo = datagrid.selectedItem.Costo;
+					expedienteCostoDetalleVO.chequeNum = datagrid.selectedItem.ChequeNum;
+					model.expedienteCostoDetalleUpdate.expedienteCostoDetalleVO = expedienteCostoDetalleVO;
+					
+					nsCosto.value = expedienteCostoDetalleVO.costo;
+					txtDetalleChequeNum.text = expedienteCostoDetalleVO.chequeNum;
+					// assign Agente
+					var inList :Boolean = false;
+					for (i = 0; i < cmbDetalleOperador.dataProvider.length; i++) {
+						if ( String(cmbDetalleOperador.dataProvider[i].Nombre) == String(datagrid.selectedItem.OpNombre) ){
+							cmbDetalleOperador.selectedIndex = i;
+							inList = true
+							break;
+						}
+					}
+					if ( !inList ){
+						var xmlTemp:XML;
+						xmlTemp = XML('<row><Nombre>' + datagrid.selectedItem.OpNombre + '</Nombre></row>')
+						cmbDetalleOperador.dataProvider.addItem( xmlTemp );
+						cmbDetalleOperador.selectedIndex = cmbDetalleOperador.dataProvider.length - 1; 
+					}
+				}
+			}
+			
+			private function nuevoAgente():void
+			{
+				var i:int;
+				this.esNuevo = true;
+				reset();
+				model.expedienteCostoDetalleUpdate.expedienteCostoDetalleVO.costoId = 0;
+				model.expedienteCostoDetalleUpdate.expedienteCostoDetalleVO.costo = 0;
+				model.expedienteCostoDetalleUpdate.expedienteCostoDetalleVO.chequeNum = '';
+				cmbDetalleOperador.selectedIndex = -1;
+			}
+			
+			private function updateAgente():void
+			{
+				expedienteCostoDetalleVO.costo = nsCosto.value;
+				expedienteCostoDetalleVO.chequeNum = txtDetalleChequeNum.text.toUpperCase();
+				if ( cmbDetalleOperador.selectedIndex == spark.components.ComboBox.CUSTOM_SELECTED_ITEM ){
+					expedienteCostoDetalleVO.opNombre = cmbDetalleOperador.selectedItem.toUpperCase();
+				} else { // it is in the list
+					expedienteCostoDetalleVO.opNombre = cmbDetalleOperador.selectedItem.Nombre.toUpperCase();
+				}
+				model.expedienteCostoDetalleUpdate.expedienteCostoDetalleVO = expedienteCostoDetalleVO;
+				var event : ExpedienteCostoDetalleUpdateEvent = new ExpedienteCostoDetalleUpdateEvent( expedienteCostoDetalleVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				this.esNuevo = false;
+			}
+
+			private function borrarAgente():void
+			{
+				var event : ExpedienteCostoDetalleDeleteEvent = new ExpedienteCostoDetalleDeleteEvent( model.expedienteCostoDetalleUpdate.expedienteCostoDetalleVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				this.esNuevo = false;
+				model.expedienteCostoDetalleUpdate.expedienteCostoDetalleVO.costoId = 0;
+				model.expedienteCostoDetalleUpdate.expedienteCostoDetalleVO.costo = 0;
+				model.expedienteCostoDetalleUpdate.expedienteCostoDetalleVO.chequeNum = '';
+				cmbDetalleOperador.selectedIndex = -1;
+			}
+			
+			// Sort for the numeric columns
+			private function sortCompareNumeric(itemA:Object, itemB:Object, gc:GridColumn):int 
+			{
+				return ObjectUtil.numericCompare(itemA[gc.dataField], itemB[gc.dataField]);
+				
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:DataGrid id="datagrid" x="10" y="10.35" width="491" height="157"
+				 verticalScrollPolicy="on"
+				 alternatingRowColors="[#F7F7F7, white]"
+				 selectionChange="selectCosto()"
+				 dataProvider="{model.expedienteCostos.expedienteCostosVO.datagridInfo}">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn headerText="Operador" minWidth="240"
+								   dataField="OpNombre"/>
+				<s:GridColumn headerText="Costo" minWidth="70"
+								   sortCompareFunction="sortCompareNumeric"
+								   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+								   dataField="Costo"/>
+				<s:GridColumn headerText="ChequeNum" minWidth="80"
+								   dataField="ChequeNum"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+
+	<s:Label x="10.6" y="184.25" text="Operador"/>
+	<s:ComboBox id="cmbDetalleOperador" x="11" y="195" width="256"
+				typographicCase="uppercase"
+				alternatingItemColors="[#F7F7F7, white]"
+				labelField="Nombre"
+				dataProvider="{model.operadoresNombre.operadoresNombreVO.datagridInfo}"/>	
+	<s:Label x="277.7" y="186.25" text="Costo"/>
+	<s:NumericStepper id="nsCosto" x="278" y="197" width="97"
+					  stepSize="0.01"
+					  maximum="99999"
+					  value="{model.expedienteCostoDetalleUpdate.expedienteCostoDetalleVO.costo}"/>
+	<s:Label x="385.7" y="185.95" text="Cheque Num"/>
+	<s:TextInput id="txtDetalleChequeNum" x="386" y="196.65" width="98"
+				 text="{model.expedienteCostoDetalleUpdate.expedienteCostoDetalleVO.chequeNum}"
+				 typographicCase="uppercase"/>
+
+
+	<s:Button id="btnNuevo" x="526" y="138" width="90" label="Nuevo" 
+			  enabled="{!this.esNuevo}"
+			  click="nuevoAgente()"/>
+	<s:Button id="btnBorrar" x="526" y="68" width="90" label="Borrar" 
+			  enabled="{datagrid.selectedIndex > -1}"
+			  click="borrarAgente()"/>
+	<s:Button id="btnGuardar" x="526" y="168" width="90" label="Guardar" 
+			  enabled="{(datagrid.selectedIndex > -1) || this.esNuevo}"
+			  click="updateAgente()"/>
+	<s:Button id="btnCancelar" x="526" y="197" width="90" label="Cancelar" 
+			  click="selectCosto()"/>
+</s:TitleWindow>

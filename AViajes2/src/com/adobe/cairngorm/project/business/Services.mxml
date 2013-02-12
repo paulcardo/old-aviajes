@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<cairngorm:ServiceLocator 
+	xmlns:fx="http://ns.adobe.com/mxml/2009" xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:s="library://ns.adobe.com/flex/spark" 
+	xmlns:cairngorm="com.adobe.cairngorm.business.*">
+	<fx:Script>
+		<![CDATA[
+		[Bindable]
+		public var webserviceWdsl:String;
+
+	
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+
+	<mx:WebService 
+		id="ManagementWS"
+		wsdl="{webserviceWdsl}"
+		service="aViajesService"
+		port="aViajesServiceSoap"
+		showBusyCursor="true">
+		
+		<mx:operation name="GetCounter" resultFormat="e4x"/>
+		<mx:operation name="GetCounterExpNum" resultFormat="e4x"/>
+		<mx:operation name="UpdateCounterExpNum" resultFormat="e4x"/>
+		<mx:operation name="GetClaveAdministrador" resultFormat="e4x"/>
+		<mx:operation name="UpdateClaveAdministrador" resultFormat="e4x"/>
+
+		<mx:operation name="GetAgenciasNombreList" resultFormat="e4x"/>
+		<mx:operation name="GetEstadosNombreList" resultFormat="e4x"/>
+		<mx:operation name="GetAgentesNombreList" resultFormat="e4x"/>
+		<mx:operation name="GetOperadoresNombreList" resultFormat="e4x"/>
+		
+		<mx:operation name="GetExpedientesList" resultFormat="e4x"/>
+		<mx:operation name="GetExpedienteDetalle" resultFormat="e4x"/>
+		<mx:operation name="UpdateExpedienteDetalle" resultFormat="e4x"/>
+		<mx:operation name="GetVouchersList" resultFormat="e4x"/>
+		<mx:operation name="GetVoucherDetalle" resultFormat="e4x"/>
+		<mx:operation name="UpdateVoucherDetalle" resultFormat="e4x"/>
+		<mx:operation name="GetFacturasList" resultFormat="e4x"/>
+		<mx:operation name="GetFacturaDetalle" resultFormat="e4x"/>
+		<mx:operation name="UpdateFacturaDetalle" resultFormat="e4x"/>
+		<mx:operation name="GetFacturaCostosList" resultFormat="e4x"/>
+		<mx:operation name="UpdateFacturaCostoDetalle" resultFormat="e4x"/>
+		<mx:operation name="DeleteFacturaCostoDetalle" resultFormat="e4x"/>
+		<mx:operation name="GetExpedienteCostosList" resultFormat="e4x"/>
+		<mx:operation name="UpdateExpedienteCostoDetalle" resultFormat="e4x"/>
+		<mx:operation name="DeleteExpedienteCostoDetalle" resultFormat="e4x"/>
+		<mx:operation name="UpdateFacturaDetalleImpreso" resultFormat="e4x"/>
+		
+		<mx:operation name="GetOperadoresList" resultFormat="e4x"/>
+		<mx:operation name="GetOperadoreDetalle" resultFormat="e4x"/>
+		<mx:operation name="UpdateOperadoreDetalle" resultFormat="e4x"/>
+		<mx:operation name="GetAgenciasList" resultFormat="e4x"/>
+		<mx:operation name="GetAgenciaDetalle" resultFormat="e4x"/>
+		<mx:operation name="UpdateAgenciaDetalle" resultFormat="e4x"/>
+		<mx:operation name="GetAgentesList" resultFormat="e4x"/>
+		<mx:operation name="GetAgenteDetalle" resultFormat="e4x"/>
+		<mx:operation name="UpdateAgenteDetalle" resultFormat="e4x"/>	
+		<mx:operation name="GetUsuariosList" resultFormat="e4x"/>
+		<mx:operation name="GetUsuarioDetalle" resultFormat="e4x"/>
+		<mx:operation name="UpdateUsuarioDetalle" resultFormat="e4x"/>	
+		<mx:operation name="DeleteUsuarioDetalle" resultFormat="e4x"/>
+		
+		<mx:operation name="GetReporteVouchersList" resultFormat="e4x"/>
+		<mx:operation name="GetReporteFacturasList" resultFormat="e4x"/>
+		<mx:operation name="GetReportePagosOperadoresList" resultFormat="e4x"/>
+		<mx:operation name="GetReportePagosOperadoresVouchersList" resultFormat="e4x"/>
+		<mx:operation name="GetReportePagosAgentesList" resultFormat="e4x"/>
+		<mx:operation name="GetReporteResumenExpedientesList" resultFormat="e4x"/>
+		
+		<mx:operation name="GetComisionesPagosList" resultFormat="e4x"/>
+		<mx:operation name="InsertComisionPago" resultFormat="e4x"/>
+		<mx:operation name="UpdateComisionPago" resultFormat="e4x"/>
+		<mx:operation name="GetComisionistasNombreList" resultFormat="e4x"/>
+		
+	</mx:WebService>
+	</fx:Declarations>
+</cairngorm:ServiceLocator>

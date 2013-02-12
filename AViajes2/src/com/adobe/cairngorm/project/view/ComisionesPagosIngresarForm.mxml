@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 title="Comisiones - Ingresar"
+		 creationComplete="init()"
+		 width="1014" height="610">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+		<s:SortingCollator id="sortingCollator" locale="en" numericComparison="true"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[  
+			import com.adobe.cairngorm.control.CairngormEventDispatcher;
+			import com.adobe.cairngorm.project.event.ComisionistasNombreEvent;
+			import com.adobe.cairngorm.project.event.ComisionesPagosEvent;
+			import com.adobe.cairngorm.project.event.ComisionesPagosInsertEvent;
+			import com.adobe.cairngorm.project.event.CounterEvent;
+			import com.adobe.cairngorm.project.model.ComisionesPagos;
+			import com.adobe.cairngorm.project.model.ModelLocator;
+			import com.adobe.cairngorm.project.utils.DataExporter;
+			import com.adobe.cairngorm.project.vo.*;
+			
+			import mx.collections.ArrayCollection;
+			import mx.utils.ObjectUtil;
+			
+			[Bindable]
+			public var model : ModelLocator = ModelLocator.getInstance();
+			
+			[Bindable]
+			public var esNuevo : Boolean = false;
+			
+			[Bindable]
+			public var expAnnoDetalleArray : ArrayCollection = new ArrayCollection;
+
+			public var Anno :int;
+			
+			public function init() : void
+			{
+				var i : int;
+				var today:Date= new Date();
+				// datos para combos Años
+				this.Anno = today.getFullYear();
+				for (i = this.Anno + 1; i > 2010; i--) {
+					expAnnoDetalleArray.addItem( i.toString() );
+				}
+				// poner la fecha de hoy
+				dfFecha.selectedDate = new Date;
+				cmbDetalleExpAnno.selectedIndex = 1;
+				// get ComisionistasNombre
+				comisionistasNombreSearch();
+				// search top 100 registros
+				this.comisionesPagosSearch();
+			}	
+			
+			public function comisionistasNombreSearch() : void
+			{
+				var comisionistasNombreVO : ComisionistasNombreVO = new ComisionistasNombreVO();
+				model.comisionistasNombre.comisionistasNombreVO = comisionistasNombreVO;
+				var event : ComisionistasNombreEvent = new ComisionistasNombreEvent( comisionistasNombreVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+
+				
+			public function comisionesPagosSearch() : void
+			{
+				var comisionesPagosVO : ComisionesPagosVO = new ComisionesPagosVO();
+				comisionesPagosVO.estado = 'Todos';
+				model.comisionesPagos.comisionesPagosVO = comisionesPagosVO;
+				var event : ComisionesPagosEvent = new ComisionesPagosEvent( comisionesPagosVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+			
+			private function limpiarComisionPago():void
+			{
+				cmbDetalleExpAnno.selectedIndex = 1;
+				cmbNombre.selectedIndex = -1;
+				txtCuenta.text = "";
+				txtConcepto.text = "";
+				nsCosto.value = 0;
+				nsExpNum.value = 0;
+				dfFecha.selectedDate = new Date;
+			}	
+			
+			private function insertComisionPago():void
+			{
+				var comisionesPagosInsertVO : ComisionesPagosDetalleVO = new ComisionesPagosDetalleVO();
+				comisionesPagosInsertVO.expAnno = cmbDetalleExpAnno.selectedItem;
+				comisionesPagosInsertVO.expNum = nsExpNum.value.toString();
+				comisionesPagosInsertVO.cuenta = txtCuenta.text.toUpperCase();
+				comisionesPagosInsertVO.costo = nsCosto.value.toString();
+				comisionesPagosInsertVO.concepto = txtConcepto.text.toUpperCase();
+				// Combo Nombre
+				if ( cmbNombre.selectedIndex == spark.components.ComboBox.CUSTOM_SELECTED_ITEM ){
+					comisionesPagosInsertVO.nombre = cmbNombre.selectedItem.toUpperCase();
+				} else { // it is in the list
+					comisionesPagosInsertVO.nombre = cmbNombre.selectedItem.Nombre.toUpperCase();
+				}
+
+				var tempNum:int;
+				var tempStr:String;
+				comisionesPagosInsertVO.fechaLimite = dfFecha.selectedDate.getFullYear().toString();
+				// month
+				tempStr = String(dfFecha.selectedDate.getMonth() + 1);
+				if ( tempStr.length < 2 ){
+					tempStr = "0" + tempStr;
+				}
+				comisionesPagosInsertVO.fechaLimite = comisionesPagosInsertVO.fechaLimite + "-" + tempStr;
+				// day 
+				tempStr = String(dfFecha.selectedDate.getDate());
+				if ( tempStr.length < 2 ){
+					tempStr = "0" + tempStr;
+				}
+				comisionesPagosInsertVO.fechaLimite = comisionesPagosInsertVO.fechaLimite + "-" + tempStr;
+				
+				model.comisionesPagosInsert.comisionesPagosInsertVO = comisionesPagosInsertVO;
+				var event : ComisionesPagosInsertEvent = new ComisionesPagosInsertEvent( comisionesPagosInsertVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				this.esNuevo = false;
+			}
+			
+			
+			private function comisionistaChanged():void
+			{
+				if (cmbNombre.selectedIndex > -1){
+					txtCuenta.text = model.comisionistasNombre.comisionistasNombreVO.datagridInfo[cmbNombre.selectedIndex].Cuenta;
+				}
+			}
+			
+			private function exportCSV(dg:DataGrid):void
+			{
+				var arrayTotals : Array = new Array();
+				arrayTotals.push("");
+				DataExporter.exportGridAndTotalsCSV(dg, arrayTotals);
+			}
+			
+			// Sorts for the numeric columns
+			private function sortCompareNumericExpNum(itemA:Object, itemB:Object, gc:GridColumn):int
+			{
+				return ObjectUtil.numericCompare(itemA.ExpNum,itemB.ExpNum);
+			}
+			
+			private function sortCompareNumericCosto(itemA:Object, itemB:Object, gc:GridColumn):int
+			{
+				return ObjectUtil.numericCompare(itemA.Costo,itemB.Costo);
+			}
+			
+			private function myParseFunc(val:String):Number 
+			{ 
+				// used in numericStepper to mandatory use "." as decimal point
+				var stringVal:String = val.replace(",","."); 
+				return Number(stringVal);     
+			} 
+			
+		]]>
+	</fx:Script>
+	
+	<s:Button x="13" y="21" label="Buscar"
+			  click="comisionesPagosSearch()"/>
+	<s:Button x="931" y="20" label="Exportar"
+			  enabled="{datagrid.dataProvider != null}" click="exportCSV(datagrid)"/>
+	
+	<s:DataGrid id="datagrid" x="10" y="50.35" width="992" height="376"
+				 verticalScrollPolicy="on" 
+				 variableRowHeight="true"
+				 alternatingRowColors="[#F7F7F7, white]"
+				 dataProvider="{model.comisionesPagos.comisionesPagosVO.datagridInfo}">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn headerText="Año" minWidth="44"
+							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
+								   dataField="ExpAnno"/>
+				<s:GridColumn headerText="Num" minWidth="40"
+								   sortCompareFunction="sortCompareNumericExpNum"
+								   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
+								   dataField="ExpNum"/>
+				<s:GridColumn headerText="Nombre" minWidth="180"
+								   dataField="Nombre"/>
+				<s:GridColumn headerText="Cuenta" minWidth="180"
+								   dataField="Cuenta"/>
+				<s:GridColumn headerText="Costo" minWidth="85" 
+								   sortCompareFunction="sortCompareNumericCosto"
+								   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+								   dataField="CostoFormated"/>
+				<s:GridColumn headerText="Fecha Límite" minWidth="88"
+								   dataField="FechaLimite"/>
+				<s:GridColumn headerText="Concepto" minWidth="340"
+								   dataField="Concepto"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+
+
+	<s:Label x="12" y="434" text="Nombre"/>
+	<s:ComboBox id="cmbNombre" x="10" y="446" width="450"
+				typographicCase="uppercase"
+				alternatingItemColors="[#F7F7F7, white]"
+				labelField="Nombre"
+				change="comisionistaChanged()"
+				dataProvider="{model.comisionistasNombre.comisionistasNombreVO.datagridInfo}"/>
+	
+	<s:Label x="469.7" y="435.3" text="Cuenta"/>
+	<s:TextInput id="txtCuenta" x="468" y="446" width="427"
+				 typographicCase="uppercase"/>
+
+	<s:Label x="153.6" y="484.25" text="Costo"/>
+	<s:NumericStepper id="nsCosto" x="154" y="495" width="102"
+					  stepSize="0.01"
+					  maximum="999999999"
+					  valueParseFunction="myParseFunc"
+					  />
+	
+	<s:Label x="10.6" y="534.25" text="Concepto"/>
+	<s:TextInput id="txtConcepto" x="11" y="545" width="884"
+				 typographicCase="uppercase"/>
+	<s:Label x="277.7" y="484.3" text="Fecha Límite"/>
+	<mx:DateField id="dfFecha" x="278" y="495" width="100"/>
+
+	<s:Button id="btnGuardar" x="909" y="438" width="90" label="Guardar" 
+			  click="insertComisionPago()"/>
+	<s:Button id="btnCancelar" x="909" y="468" width="90" label="Limpiar" 
+			  click="limpiarComisionPago()"/>
+	<s:Button id="btnRefrescar" x="66" y="428" width="90" height="17" label="Refrescar" 
+			  click="comisionistasNombreSearch()"/>
+	
+	<s:Label x="10" y="484" text="Año"/>
+	<s:DropDownList id="cmbDetalleExpAnno" x="10" y="495" width="66"
+				alternatingItemColors="[#F7F7F7, white]"
+				dataProvider="{expAnnoDetalleArray}"/>
+	<s:Label x="86.7" y="484" text="Exp. #"/>
+	<s:NumericStepper id="nsExpNum" x="87" y="495" width="46"
+					  stepSize="1"
+					  maximum="999"
+					  valueParseFunction="myParseFunc"
+					  />
+</s:Panel>

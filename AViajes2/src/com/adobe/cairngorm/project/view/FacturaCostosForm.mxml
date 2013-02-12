@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 title="Factura Costos"
+		 creationComplete="init()"
+		 close="handleCloseEvent()"
+		 width="638" height="268">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[  
+			import com.adobe.cairngorm.control.CairngormEventDispatcher;
+			import com.adobe.cairngorm.project.event.CounterEvent;
+			import com.adobe.cairngorm.project.event.FacturaCostoDetalleDeleteEvent;
+			import com.adobe.cairngorm.project.event.FacturaCostoDetalleUpdateEvent;
+			import com.adobe.cairngorm.project.event.FacturaCostosEvent;
+			import com.adobe.cairngorm.project.model.Agentes;
+			import com.adobe.cairngorm.project.model.ModelLocator;
+			import com.adobe.cairngorm.project.vo.*;
+			import mx.collections.ArrayCollection;
+			import mx.managers.PopUpManager;
+			import mx.utils.ObjectUtil;
+			
+			[Bindable]
+			public var model : ModelLocator = ModelLocator.getInstance();
+			
+			[Bindable]
+			public var esNuevo : Boolean = false;
+			
+			[Bindable]
+			public var facturaCostoDetalleVO_base : FacturaCostoDetalleVO = new FacturaCostoDetalleVO();
+			
+			private var facturaCostoDetalleVO : FacturaCostoDetalleVO = new FacturaCostoDetalleVO();
+			
+			// Handle the close button and Cancel button.
+			private function handleCloseEvent():void {
+				PopUpManager.removePopUp(this);
+			}  	
+				
+			private function init():void {
+				reset();
+				
+				// get Costos
+				var facturaCostosVO : FacturaCostosVO = new FacturaCostosVO();
+				facturaCostosVO.facNumId = facturaCostoDetalleVO.facNumId;
+				model.facturaCostos.facturaCostosVO = facturaCostosVO;
+				var eventTwo : FacturaCostosEvent = new FacturaCostosEvent( facturaCostosVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( eventTwo );
+			}  
+			
+			private function reset():void {
+				// valores de la factura
+				facturaCostoDetalleVO = facturaCostoDetalleVO_base;
+				model.facturaCostoDetalleUpdate.facturaCostoDetalleVO = facturaCostoDetalleVO;
+			} 
+			
+			private function selectCosto():void
+			{
+				var i:int;
+				this.esNuevo = false;
+				reset(); // reset values
+				if ( datagrid.selectedIndex > -1 ){
+					facturaCostoDetalleVO.costoId = datagrid.selectedItem.CostoId;
+					facturaCostoDetalleVO.agntNombre = datagrid.selectedItem.AgntNombre;
+					facturaCostoDetalleVO.costo = datagrid.selectedItem.Costo;
+					facturaCostoDetalleVO.chequeNum = datagrid.selectedItem.ChequeNum;
+					model.facturaCostoDetalleUpdate.facturaCostoDetalleVO = facturaCostoDetalleVO;
+					
+					nsCosto.value = facturaCostoDetalleVO.costo;
+					txtDetalleChequeNum.text = facturaCostoDetalleVO.chequeNum;
+						
+					// assign Agente
+					var inList :Boolean = false;
+					for (i = 0; i < cmbDetalleAgente.dataProvider.length; i++) {
+						if ( String(cmbDetalleAgente.dataProvider[i].Nombre) == String(datagrid.selectedItem.AgntNombre) ){
+							cmbDetalleAgente.selectedIndex = i;
+							inList = true
+							break;
+						}
+					}
+					if ( !inList ){
+						var xmlTemp:XML;
+						xmlTemp = XML('<row><Nombre>' + datagrid.selectedItem.AgntNombre + '</Nombre></row>')
+						cmbDetalleAgente.dataProvider.addItem( xmlTemp );
+						cmbDetalleAgente.selectedIndex = cmbDetalleAgente.dataProvider.length - 1; 
+					}
+				}
+			}
+			
+			private function nuevoAgente():void
+			{
+				var i:int;
+				this.esNuevo = true;
+				
+				reset();
+				model.facturaCostoDetalleUpdate.facturaCostoDetalleVO.costoId = 0;
+				model.facturaCostoDetalleUpdate.facturaCostoDetalleVO.costo = 0;
+				model.facturaCostoDetalleUpdate.facturaCostoDetalleVO.chequeNum = '';
+				cmbDetalleAgente.selectedIndex = -1;
+			}
+			
+			private function updateAgente():void
+			{
+				facturaCostoDetalleVO.costo = nsCosto.value;
+				facturaCostoDetalleVO.chequeNum = txtDetalleChequeNum.text.toUpperCase();
+				if ( cmbDetalleAgente.selectedIndex == spark.components.ComboBox.CUSTOM_SELECTED_ITEM ){
+					facturaCostoDetalleVO.agntNombre = cmbDetalleAgente.selectedItem.toUpperCase();
+				} else { // it is in the list
+					facturaCostoDetalleVO.agntNombre = cmbDetalleAgente.selectedItem.Nombre.toUpperCase();
+				}
+				model.facturaCostoDetalleUpdate.facturaCostoDetalleVO = facturaCostoDetalleVO;
+				var event : FacturaCostoDetalleUpdateEvent = new FacturaCostoDetalleUpdateEvent( facturaCostoDetalleVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				this.esNuevo = false;
+			}
+
+			private function borrarAgente():void
+			{
+				var event : FacturaCostoDetalleDeleteEvent = new FacturaCostoDetalleDeleteEvent( model.facturaCostoDetalleUpdate.facturaCostoDetalleVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				this.esNuevo = false;
+				model.facturaCostoDetalleUpdate.facturaCostoDetalleVO.costoId = 0;
+				model.facturaCostoDetalleUpdate.facturaCostoDetalleVO.costo = 0;
+				model.facturaCostoDetalleUpdate.facturaCostoDetalleVO.chequeNum = '';
+				cmbDetalleAgente.selectedIndex = -1;
+			}
+			
+			private function sortCompareNumericCosto(itemA:Object, itemB:Object, gc:GridColumn):int 
+			{
+				return ObjectUtil.numericCompare(itemA.Costo,itemB.Costo);
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:DataGrid id="datagrid" x="10" y="10.35" width="491" height="157"
+				 verticalScrollPolicy="on"
+				 alternatingRowColors="[#F7F7F7, white]"
+				 selectionChange="selectCosto()"
+				 dataProvider="{model.facturaCostos.facturaCostosVO.datagridInfo}">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn headerText="Agente" minWidth="240"
+								   dataField="AgntNombre"/>
+				<s:GridColumn headerText="Costo" minWidth="70"
+								   sortCompareFunction="sortCompareNumericCosto"
+								   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+								   dataField="Costo"/>
+				<s:GridColumn headerText="ChequeNum" minWidth="80"
+							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+								   dataField="ChequeNum"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+	<s:Label x="10.6" y="184.25" text="Agente"/>
+	<s:ComboBox id="cmbDetalleAgente" x="11" y="195" width="257"
+				typographicCase="uppercase"
+				alternatingItemColors="[#F7F7F7, white]"
+				labelField="Nombre"
+				dataProvider="{model.agentesNombre.agentesNombreVO.datagridInfo}"/>
+	<s:Label x="278.7" y="186.25" text="Costo"/>
+	<s:Label x="385.7" y="185.95" text="Cheque Num"/>
+	<s:NumericStepper id="nsCosto" x="279" y="197" width="97"
+					  stepSize="0.01"
+					  maximum="99999"
+					  value="{model.facturaCostoDetalleUpdate.facturaCostoDetalleVO.costo}"/>
+	<s:TextInput id="txtDetalleChequeNum" x="386" y="196.65" width="100"
+				 text="{model.facturaCostoDetalleUpdate.facturaCostoDetalleVO.chequeNum}"
+				 typographicCase="uppercase"/>
+
+	<s:Button id="btnNuevo" x="526" y="138" width="90" label="Nuevo" 
+			  enabled="{!this.esNuevo}"
+			  click="nuevoAgente()"/>
+	<s:Button id="btnBorrar" x="526" y="68" width="90" label="Borrar" 
+			  enabled="{datagrid.selectedIndex > -1}"
+			  click="borrarAgente()"/>
+	<s:Button id="btnGuardar" x="526" y="168" width="90" label="Guardar" 
+			  enabled="{(datagrid.selectedIndex > -1) || (this.esNuevo)}"
+			  click="updateAgente()"/>
+	<s:Button id="btnCancelar" x="526" y="197" width="90" label="Cancelar" 
+			  click="selectCosto()"/>
+	<s:Label x="518" y="13" text="Factura"/>
+	<s:Label x="568" y="13" text="{facturaCostoDetalleVO_base.facNumId}" width="58" height="12"/>
+</s:TitleWindow>

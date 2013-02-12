@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 title="Agentes"
+		 creationComplete="init()"
+		 width="800" height="610">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[  
+			import com.adobe.cairngorm.control.CairngormEventDispatcher;
+
+			import com.adobe.cairngorm.project.event.CounterEvent;
+			import com.adobe.cairngorm.project.event.AgenteDetalleEvent;
+			import com.adobe.cairngorm.project.event.AgenteDetalleUpdateEvent;
+			import com.adobe.cairngorm.project.event.AgentesEvent;
+			import com.adobe.cairngorm.project.model.Agentes;
+			import com.adobe.cairngorm.project.model.ModelLocator;
+			import com.adobe.cairngorm.project.vo.*;
+			import mx.utils.ObjectUtil;
+			import mx.collections.ArrayCollection;
+			// export to CSV
+			import com.adobe.cairngorm.project.utils.DataExporter;
+			
+			[Bindable]
+			public var model : ModelLocator = ModelLocator.getInstance();
+			
+			[Bindable]
+			public var esNuevo : Boolean = false;
+			
+			public function init() : void
+			{
+			}	
+				
+			public function agentesSearch() : void
+			{
+				var agentesVO : AgentesVO = new AgentesVO();
+				agentesVO.nombre = txtOperador.text;
+				agentesVO.agenciaNombre = txtAgencia.text;
+				model.agentes.agentesVO = agentesVO;
+				var event : AgentesEvent = new AgentesEvent( agentesVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+			
+			private function selectAgente():void
+			{
+				var i:int;
+				var agenteDetalleVO : AgenteDetalleVO = new AgenteDetalleVO();
+				model.agenteDetalle.agenteDetalleVO = new AgenteDetalleVO(); // reset
+				this.esNuevo = false;
+				if ( datagrid.selectedIndex > -1 ){
+					agenteDetalleVO.agntId = datagrid.selectedItem.AgntId;
+					model.agenteDetalle.agenteDetalleVO = agenteDetalleVO;
+					var event : AgenteDetalleEvent = new AgenteDetalleEvent( agenteDetalleVO );
+					CairngormEventDispatcher.getInstance().dispatchEvent( event );
+					// assign Agencia
+					var inList :Boolean = false;
+					for (i = 0; i < cmbDetalleAgencia.dataProvider.length; i++) {
+						if ( String(cmbDetalleAgencia.dataProvider[i].Nombre) == String(datagrid.selectedItem.AgNombre) ){
+							cmbDetalleAgencia.selectedIndex = i;
+							inList = true
+							break;
+						}
+					}
+					if ( !inList ){
+						var xmlTemp:XML;
+						xmlTemp = XML('<row><Nombre>' + datagrid.selectedItem.AgNombre + '</Nombre></row>')
+						trace(xmlTemp)
+						cmbDetalleAgencia.dataProvider.addItem( xmlTemp );
+						cmbDetalleAgencia.selectedIndex = cmbDetalleAgencia.dataProvider.length - 1; 
+					}
+					// assign Tipo de Pago 
+					if ( datagrid.selectedItem.TipoPago == 'Porcentaje' ){
+						ddlDetalleTipoPago.selectedIndex = 0;
+					} else {
+						ddlDetalleTipoPago.selectedIndex = 1;
+					}
+				}
+			}
+			
+			private function nuevoAgente():void
+			{
+				var i:int;
+				this.esNuevo = true;
+				model.agenteDetalle.agenteDetalleVO = new AgenteDetalleVO();
+				
+				// set combo estado = activo
+				cmbDetalleAgencia.selectedIndex = 1;		
+			}
+			
+			private function updateAgente():void
+			{
+				var agenteDetalleVO : AgenteDetalleVO = new AgenteDetalleVO();
+				if ( this.esNuevo ){
+					agenteDetalleVO.agntId = -1;
+				} else {
+					agenteDetalleVO.agntId = datagrid.selectedItem.AgntId;
+				}
+				agenteDetalleVO.nombre = txtDetalleNombre.text.toUpperCase();
+				if ( cmbDetalleAgencia.selectedIndex == spark.components.ComboBox.CUSTOM_SELECTED_ITEM ){
+					agenteDetalleVO.agenciaNombre = cmbDetalleAgencia.selectedItem.toUpperCase();
+				} else { // it is in the list
+					agenteDetalleVO.agenciaNombre = cmbDetalleAgencia.selectedItem.Nombre.toUpperCase();
+				}
+				agenteDetalleVO.tipoPago = ddlDetalleTipoPago.selectedItem;
+				agenteDetalleVO.porcentaje = txtDetallePorcentaje.value;
+				
+				model.agenteDetalle.agenteDetalleVO = agenteDetalleVO;
+				var event : AgenteDetalleUpdateEvent = new AgenteDetalleUpdateEvent( agenteDetalleVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				this.esNuevo = false;
+			}
+
+			private function exportCSV(dg:DataGrid):void
+			{
+				var arrayTotals : Array = new Array();
+				arrayTotals.push("");
+				DataExporter.exportGridAndTotalsCSV(dg, arrayTotals);
+			}	
+			
+			private function sortCompareNumericMonto(itemA:Object, itemB:Object, gc:GridColumn):int
+			{
+				return ObjectUtil.numericCompare(itemA.Porcentaje,itemB.Porcentaje);
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:Label x="10.3" y="9.95" text="Agente"/>
+	<s:TextInput id="txtOperador" x="10.65" y="20.65" width="293"
+				 typographicCase="uppercase"/>
+	<s:Label x="312.3" y="9.95" text="Agencia"/>
+	<s:TextInput id="txtAgencia" x="312.65" y="20.65" width="301"
+				 typographicCase="uppercase"/>
+	<s:Button x="622" y="20" label="Buscar"
+			  click="agentesSearch()"/>
+	<s:Button x="717" y="20" label="Exportar"
+			  enabled="{datagrid.dataProvider != null}" click="exportCSV(datagrid)"/>
+	<s:DataGrid id="datagrid" x="10" y="50.35" width="778" height="376"
+				verticalScrollPolicy="on"
+				alternatingRowColors="[#F7F7F7, white]"
+				selectionChange="selectAgente()"
+				dataProvider="{model.agentes.agentesVO.datagridInfo}">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn headerText="Nombre" minWidth="300"
+							  dataField="Nombre"/>
+				<s:GridColumn headerText="Agencia" minWidth="300"
+							  dataField="AgNombre"/>
+				<s:GridColumn headerText="Tipo Pago" minWidth="80"
+							  dataField="TipoPago"/>
+				<s:GridColumn headerText="Monto" minWidth="60"
+							  sortCompareFunction="sortCompareNumericMonto"
+							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+							  dataField="Porcentaje"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+
+	<s:Label x="10" y="434" text="Nombre"/>
+	<s:TextInput id="txtDetalleNombre" x="10" y="444" width="563"
+				 text="{model.agenteDetalle.agenteDetalleVO.nombre}"
+				 typographicCase="uppercase"/>
+	<s:Label x="10.6" y="484.25" text="Agencia"/>
+	<s:ComboBox id="cmbDetalleAgencia" x="11" y="495" width="375"
+				typographicCase="uppercase"
+				alternatingItemColors="[#F7F7F7, white]"
+				labelField="Nombre"
+				dataProvider="{model.agenciasNombre.agenciasNombreVO.datagridInfo}"/>
+	<s:Label x="403.7" y="486.3" text="Tipo de Pago"/>
+	<s:DropDownList id="ddlDetalleTipoPago" x="404" y="497" width="97"
+					requireSelection="true">
+		<mx:ArrayCollection>
+			<fx:String>Porcentaje</fx:String>
+			<fx:String>Monto</fx:String>
+		</mx:ArrayCollection>
+	</s:DropDownList>
+	<s:Label x="508.7" y="485.95" text="Monto"/>
+	<s:NumericStepper id="txtDetallePorcentaje" x="509" y="496.65" width="60"
+					  stepSize="0.01"
+					  maximum="99999"
+					  value="{model.agenteDetalle.agenteDetalleVO.porcentaje}"/>
+
+
+	<s:Button id="btnNuevo" x="609" y="438" width="90" label="Nuevo" 
+			  enabled="{!this.esNuevo}"
+			  click="nuevoAgente()"/>
+	<s:Button id="btnGuardar" x="609" y="468" width="90" label="Guardar" 
+			  click="updateAgente()"/>
+	<s:Button id="btnCancelar" x="609" y="497" width="90" label="Cancelar" 
+			  click="selectAgente()"/>
+</s:Panel>

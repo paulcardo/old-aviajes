@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 title="Verificación de Permiso"
+		 creationComplete="init()"
+		 width="290" height="166">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[  
+			import com.adobe.cairngorm.control.CairngormEventDispatcher;
+			import com.adobe.cairngorm.project.event.FacturaDetalleUpdateEvent;
+			import com.adobe.cairngorm.project.model.ModelLocator;
+			import com.adobe.cairngorm.project.vo.*;
+			
+			import mx.managers.PopUpManager;
+			import mx.core.FlexGlobals;
+			
+			[Bindable]
+			public var model : ModelLocator = ModelLocator.getInstance();
+			
+			[Bindable]
+			public var accion:String;
+
+			[Bindable]
+			public var facturaCostoDetalleVO_base : FacturaCostoDetalleVO = new FacturaCostoDetalleVO();
+			
+			private function init():void
+			{
+				if (accion == 'ComisionesPagos_Ejecutar'){
+					lblMensaje.text = 'Para editar las Comisiones a Ejecutar contacte al Administrador para que ingrese su Clave';
+				} else if (accion == 'Anular'){
+					lblMensaje.text = 'Para anular una factura contacte al Administrador para que ingrese su Clave';
+				} else if ( (accion == 'CostosFactura') || (accion == 'CostosExpediente') ){
+					lblMensaje.text = 'Para agregar costos contacte al Administrador para que ingrese su Clave';
+				}
+				focusManager.setFocus(txtClaveAdministrador); // focus
+			}
+			private function updateFactura():void
+			{
+				var event : FacturaDetalleUpdateEvent = new FacturaDetalleUpdateEvent( model.facturaDetalle.facturaDetalleVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				model.facturas.esNuevo = false;
+				PopUpManager.removePopUp(this);
+			}
+			
+			private function popupFacturaCostosForm():void
+			{
+				// recordar que ya puso la clave de administrador
+				model.claveAdministrador.claveAdministradorVO.claveYaIngresada = true;
+				var view:FacturaCostosForm = FacturaCostosForm(PopUpManager.createPopUp(this.parent, FacturaCostosForm, true));
+				view.facturaCostoDetalleVO_base = facturaCostoDetalleVO_base;
+				PopUpManager.centerPopUp(view);
+				PopUpManager.removePopUp(this);
+			}
+
+			private function popupExpedienteCostosForm():void
+			{
+				// recordar que ya puso la clave de administrador
+				model.claveAdministrador.claveAdministradorVO.claveYaIngresada = true;
+				var view:ExpedienteCostosForm = ExpedienteCostosForm(PopUpManager.createPopUp(this.parent, ExpedienteCostosForm, true));
+				PopUpManager.centerPopUp(view);
+				PopUpManager.removePopUp(this);
+			}
+			
+			private function updateState_ComisionesPagos_Ejecutar():void
+			{
+				// recordar que ya puso la clave de administrador
+				model.claveAdministrador.claveAdministradorVO.claveYaIngresada = true;
+				// referencia a la aplicacion principal
+				FlexGlobals.topLevelApplication.currentState = this.accion;
+				PopUpManager.removePopUp(this);
+			}
+
+		]]>
+	</fx:Script>
+	
+	<s:Label id="lblMensaje" x="10" y="14" width="273"/>
+	<s:TextInput id="txtClaveAdministrador" x="24" y="48" width="232"
+				 displayAsPassword="true"/>
+	
+	<s:Button id="btnContinuar_Anular" x="51" y="90" width="90" label="Continuar" 
+			  enabled="{model.claveAdministrador.claveAdministradorVO.claveActual == txtClaveAdministrador.text}"
+			  visible="{accion == 'Anular'}"
+			  click="updateFactura()"/>
+	<s:Button id="btnContinuar_CostosFactura" x="51" y="90" width="90" label="Continuar" 
+			  enabled="{model.claveAdministrador.claveAdministradorVO.claveActual == txtClaveAdministrador.text}"
+			  visible="{accion == 'CostosFactura'}"
+			  click="popupFacturaCostosForm()"/>
+	<s:Button id="btnContinuar_CostosExpediente" x="51" y="90" width="90" label="Continuar" 
+			  enabled="{model.claveAdministrador.claveAdministradorVO.claveActual == txtClaveAdministrador.text}"
+			  visible="{accion == 'CostosExpediente'}"
+			  click="popupExpedienteCostosForm()"/>
+	<s:Button id="btnContinuar_ComisionesPagos_Ejecutar" x="51" y="90" width="90" label="Continuar" 
+			  enabled="{model.claveAdministrador.claveAdministradorVO.claveActual == txtClaveAdministrador.text}"
+			  visible="{accion == 'ComisionesPagos_Ejecutar'}"
+			  click="updateState_ComisionesPagos_Ejecutar()"/>
+	
+	<s:Button id="btnCancelar" x="151" y="90" width="90" label="Cancelar" 
+			  click="PopUpManager.removePopUp(this);"/>
+</s:Panel>

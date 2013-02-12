@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   xmlns:business="com.adobe.cairngorm.project.business.*" 
+			   xmlns:control="com.adobe.cairngorm.project.control.*"
+			   xmlns:event="com.adobe.cairngorm.project.event.*" 
+			   xmlns:view="com.adobe.cairngorm.project.view.*"
+			   pageTitle="AViajes Application" 
+			   width="1024" height="650"
+			   creationComplete="init()">
+	
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.cairngorm.business.ServiceLocator;
+			import com.adobe.cairngorm.project.model.ModelLocator;
+			import com.adobe.cairngorm.project.view.ExpedientesForm;
+			import com.adobe.cairngorm.project.vo.*;
+			
+			import com.adobe.cairngorm.control.CairngormEventDispatcher;
+			import com.adobe.cairngorm.project.event.AgenciasNombreEvent;
+			import com.adobe.cairngorm.project.event.EstadosNombreEvent;
+			import com.adobe.cairngorm.project.event.UsuariosEvent;
+			import com.adobe.cairngorm.project.event.AgentesNombreEvent;
+			import com.adobe.cairngorm.project.event.OperadoresNombreEvent;
+			import com.adobe.cairngorm.project.event.ClaveAdministradorEvent;
+			import com.adobe.cairngorm.project.view.FacturaClaveAdministradorForm;
+			
+			import mx.core.Container;
+			import mx.core.FlexGlobals;
+			import mx.events.MenuEvent;
+			import mx.managers.PopUpManager;
+			
+			
+			[Bindable]
+			public var model :  ModelLocator = ModelLocator.getInstance();
+			
+			[Bindable]
+			public var version : String = "v.2.12";
+			/*
+				2.12	- Factura no se puede modificar luego de imprimir, agregado nuevo campo Printed en tabla Factura, solo se puede anular
+				2.11	- Crear Factura, eliminado maximo de 999 para el valor del expediente
+				2.10	- Todos: cambiado los componentes mx:DataGrid por el nuevo spark:DataGrid
+							cambiado el abdulqabiz.utils\DataGridDataExporter.as y utils\DataExporter.as para ser compatible con el spark:DataGrid
+							en algunos DataGrids agregadas algunas funciones de ordenamiento numerico
+							reportes, en la generacion del PDF, aclarado el objeto GridColumn a donde pertenece (nombre duplicado para las columnas del spark:DataGrid)
+							algunos commands: format a valores numericos qeu faltaban
+				2.06	- Comisiones - Ejecutar: solicitud de password antes de mostrar esta ventana
+				2.05	- Pagos Ingresar y Ejecutar: nuevas pantallas para el control de pagos
+				2.04	- Expediente Costos: pedir clave de administrador 1 solo vez
+						- Expediente Costos: boton Cancelar siempre activo
+						- Expediente: Contador automatico interno del ExpNum
+						- Expediente: Ahora puede ingresar costos de facturas tambien desde aca, doble click al grid de facturas
+						- Factura Costos: pedir clave de administrador  1 solo vez
+						- Factura Costos: boton Cancelar siempre activo
+						- Factura: Actualizar grid al hacer un update, campos: AgNombre y Total
+						- ConfigurationForm: Ocultar el actualizador de ExpNum
+						- SP: cambiados los updates de expediente, factura y voucher, sin el count(), mas rapidos
+				2.03	- Expediente: Agregado pedir password de administrator para modificar los costos
+				2.02	- Expediente: Fix: Costo de Operadores mostraba el combo con la lista de Agentes
+						- Factura: Imprimir tipo de cambio y el monto de la factura con 2 decimales. Ejemplo:  10.00
+						- facturaclaveAdministrador: Agregado hacer setFocus a txtClaveAdministrador
+				2.01	- Factura: Agregado texto para la impresion
+						- Factura: Agregado pedir password de administrator para modificar los costos 
+						- Voucher: Al cambiar de Operador se actualiza la direccion, y si el contacto (atencion) esta vacio lo llena
+						- Usuarios: agregado el boton Borrar
+						- Configuracion: Arreglado mensaje al hacer el cambio de clave del administrador
+						- Configuracion: Recuerda la nueva clave del administrador para ser usada inmediatamente 
+						- Expediente: Al seleccionar un expediente, automaticamente busca las facturas y Vouchers de este
+				2.00	- Creado a imagen y semejansa de la version 1.56 del 2003 en delphi
+						- agregado qeu los combos agencias, agentes y operadores acepten nuevos datos excritos
+							sin tener qeu agregarlos por los mantenimientos
+			
+			*/
+			
+			private function init():void
+			{
+				var externalXML:XML;
+				var loader:URLLoader = new URLLoader();
+				var request:URLRequest = new URLRequest("FlexConfig.xml");
+				loader.load(request);
+				loader.addEventListener(Event.COMPLETE, onComplete);
+				
+				lblBienvenida.text = "Bienvenido a la version " + version + " de AViajes, propiedad de SIVETUR, 2011"
+				
+				function onComplete(event:Event):void {
+					var loader:URLLoader = URLLoader(event.target);
+					externalXML = new XML(loader.data);
+					trace('FlexConfig.xml = ' + externalXML.toXMLString());
+					// setting the wsdl address
+					var service : Object;
+					service = ServiceLocator.getInstance();
+					service.webserviceWdsl = externalXML.WebServiceWSDL;
+					
+					// carga datos iniciales para combos
+					agenciasNombreSearch(); // datos para combo Agencia
+					estadosNombreSearch(); // datos para combo Estado
+					usuariosSearch(); // datos para combo Usuarios
+					agentesNombreSearch(); // datos para combo Agencia
+					operadoresNombreSearch(); // datos para combo Agencia
+					
+					// carga clave de administrador, para comparar al anular una factura
+					claveAdministradorSearch(); // datos para combo Agencia
+				}
+			}
+			
+			public function agenciasNombreSearch() : void
+			{
+				var agenciasNombreVO : AgenciasNombreVO = new AgenciasNombreVO();
+				model.agenciasNombre.agenciasNombreVO = agenciasNombreVO;
+				var event : AgenciasNombreEvent = new AgenciasNombreEvent( agenciasNombreVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+			
+			public function estadosNombreSearch() : void
+			{
+				var estadosNombreVO : EstadosNombreVO = new EstadosNombreVO();
+				model.estadosNombre.estadosNombreVO = estadosNombreVO;
+				var event : EstadosNombreEvent = new EstadosNombreEvent( estadosNombreVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+			
+			public function usuariosSearch() : void
+			{
+				var usuariosVO : UsuariosVO = new UsuariosVO();
+				model.usuarios.usuariosVO = usuariosVO;
+				var event : UsuariosEvent = new UsuariosEvent( usuariosVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+			
+			public function agentesNombreSearch() : void
+			{
+				var agentesNombreVO : AgentesNombreVO = new AgentesNombreVO();
+				model.agentesNombre.agentesNombreVO = agentesNombreVO;
+				var event : AgentesNombreEvent = new AgentesNombreEvent( agentesNombreVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+			
+			public function operadoresNombreSearch() : void
+			{
+				var operadoresNombreVO : OperadoresNombreVO = new OperadoresNombreVO();
+				model.operadoresNombre.operadoresNombreVO = operadoresNombreVO;
+				var event : OperadoresNombreEvent = new OperadoresNombreEvent( operadoresNombreVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+
+			public function claveAdministradorSearch() : void
+			{
+				var claveAdministradorVO : ClaveAdministradorVO = new ClaveAdministradorVO();
+				model.claveAdministrador.claveAdministradorVO = claveAdministradorVO;
+				var event : ClaveAdministradorEvent = new ClaveAdministradorEvent( claveAdministradorVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+			
+			// Event handler for the MenuBar control's itemClick event.
+			private function itemClickHandler(event:MenuEvent):void {
+				trace( "type: " + event.type + "\n");
+				trace( "target menuBarIndex: " + event.index ); 
+				trace("Label: " + event.item.@label + "\n" + "Data: " + event.item.@data, "Clicked menu item");
+				
+				if ( event.item.@data == "ComisionesPagos_Ejecutar"){
+					// verificar si ya escribio la clave de administrador
+					if (model.claveAdministrador.claveAdministradorVO.claveYaIngresada){
+						currentState = event.item.@data; // change current state
+					} else {
+						// pedir la clave de administrador
+						var view2:FacturaClaveAdministradorForm = FacturaClaveAdministradorForm(PopUpManager.createPopUp(this, FacturaClaveAdministradorForm, true));
+						view2.accion = 'ComisionesPagos_Ejecutar';
+						PopUpManager.centerPopUp(view2);
+					}
+				} else {
+					currentState = event.item.@data; // change current state
+				}
+			} 
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- ========================================================================== -->
+		
+		<!-- the ServiceLocator where we specify the remote services -->
+		<business:Services id="aviajesServices"/>
+		
+		<!-- the FrontController, containing Commands specific to this appliation -->
+		<control:MainControl id="controller"/>
+		
+		<!-- For Better Debug --> 
+		<mx:TraceTarget/>
+		
+		<!-- ========================================================================== -->
+		
+		<fx:XMLList id="menuBarCollection">
+			<menuitem label="Reportes">
+				<menuitem label="Facturas" data="Reportes_Facturas"/>
+				<menuitem label="Vouchers" data="Reportes_Vouchers"/>
+				<menuitem label="Resumen Expedientes" data="Reportes_ResumenExpedientes"/>
+				<menuitem label="Pagos Agentes" data="Reportes_PagosAgentes"/>
+				<menuitem label="Pagos Operadores" data="Reportes_PagosOperadores"/>
+				<menuitem label="Pagos Operadores Voucher" data="Reportes_PagosOperadoresVouchers"/>
+			</menuitem>
+			<menuitem label="Comisiones">
+				<menuitem label="Ingresar" data="ComisionesPagos_Ingresar"/>
+				<menuitem label="Ejecutar" data="ComisionesPagos_Ejecutar"/>
+			</menuitem>
+			<menuitem label="Configuración">
+				<menuitem label="Operadores" data="Operadores"/>
+				<menuitem label="Agencias" data="Agencias"/>
+				<menuitem label="Agentes" data="Agentes"/>
+				<menuitem label="Usuarios" data="Usuarios"/>
+				<menuitem label="Cambio de Clave" data="Configurar"/>
+			</menuitem>
+		</fx:XMLList>
+	</fx:Declarations>
+	
+	<s:states>
+		<s:State name="Wellcome"/>
+		<s:State name="Expedientes"/>
+		<s:State name="Facturas"/>
+		<s:State name="Vouchers"/>
+		<s:State name="Operadores"/>
+		<s:State name="Agencias"/>
+		<s:State name="Agentes"/>
+		<s:State name="Usuarios"/>
+		<s:State name="Configurar"/>
+		<s:State name="Reportes_Facturas"/>
+		<s:State name="Reportes_Vouchers"/>
+		<s:State name="Reportes_ResumenExpedientes"/>
+		<s:State name="Reportes_PagosAgentes"/>
+		<s:State name="Reportes_PagosOperadores"/>
+		<s:State name="Reportes_PagosOperadoresVouchers"/>
+		<s:State name="ComisionesPagos_Ingresar"/>
+		<s:State name="ComisionesPagos_Ejecutar"/>
+	</s:states>	
+
+	
+	<s:Button x="0" y="0" width="90" label="Expedientes"
+			  click="{currentState = 'Expedientes'}"/>
+	<s:Button x="90" y="0" width="90" label="Facturas"
+			  click="{currentState = 'Facturas'}"/>
+	<s:Button x="180" y="0" width="90" label="Vouchers"
+			  click="{currentState = 'Vouchers'}"/>
+	
+	
+	<mx:MenuBar x="280" y="0"  
+				labelField="@label"
+				dataProvider="{menuBarCollection}" 
+				itemClick="itemClickHandler(event);" />
+	
+	<s:Label x="920" y="5" text="{version}"/>	
+	
+	<s:Label id="lblBienvenida" includeIn="Wellcome" x="283" y="81"/>
+	<view:ExpedientesForm includeIn="Expedientes" x="0" y="22" />
+	<view:VouchersForm includeIn="Vouchers" x="0" y="22" />
+	<view:FacturasForm includeIn="Facturas" x="0" y="22" />
+	
+	<view:OperadoresForm includeIn="Operadores" x="0" y="22" />
+	<view:AgenciasForm includeIn="Agencias" x="0" y="22" />
+	<view:AgentesForm includeIn="Agentes" x="0" y="22" />
+	<view:UsuariosForm includeIn="Usuarios" x="0" y="22" />
+	<view:ConfiguracionForm includeIn="Configurar" x="0" y="22" />
+	
+	<view:ReporteVouchersForm includeIn="Reportes_Vouchers" x="0" y="22" />
+	<view:ReporteFacturasForm includeIn="Reportes_Facturas" x="0" y="22" />
+	<view:ReportePagosOperadoresForm includeIn="Reportes_PagosOperadores" x="0" y="22" />
+	<view:ReportePagosOperadoresVouchersForm includeIn="Reportes_PagosOperadoresVouchers" x="0" y="22" />
+	<view:ReportePagosAgentesForm includeIn="Reportes_PagosAgentes" x="0" y="22" />
+	<view:ReporteResumenExpedientesForm includeIn="Reportes_ResumenExpedientes" x="0" y="22" />
+	
+	<view:ComisionesPagosIngresarForm includeIn="ComisionesPagos_Ingresar" x="0" y="22" />
+	<view:ComisionesPagosEjecutarForm includeIn="ComisionesPagos_Ejecutar" x="0" y="22" />
+</s:Application>

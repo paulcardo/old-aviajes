@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 title="Reporte Factura"
+		 creationComplete="init()"
+		 width="1014" height="610">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[  
+			import com.adobe.cairngorm.control.CairngormEventDispatcher;
+			import com.adobe.cairngorm.project.event.ReporteFacturasEvent;
+			import com.adobe.cairngorm.project.model.ModelLocator;
+			import com.adobe.cairngorm.project.model.ReporteFacturas;
+			import com.adobe.cairngorm.project.utils.DataExporter;
+			import com.adobe.cairngorm.project.vo.*;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.XMLListCollection;
+			import mx.formatters.NumberBaseRoundType;
+			import mx.formatters.NumberFormatter;
+			import mx.rpc.xml.SimpleXMLDecoder;
+			import mx.utils.ObjectUtil;
+			
+			import org.alivepdf.colors.RGBColor;
+			import org.alivepdf.data.Grid;
+			import org.alivepdf.data.GridColumn;
+			import org.alivepdf.display.Display;
+			import org.alivepdf.fonts.CoreFont;
+			import org.alivepdf.fonts.FontFamily;
+			import org.alivepdf.fonts.Style;
+			import org.alivepdf.images.ColorSpace;
+			import org.alivepdf.layout.Align;
+			import org.alivepdf.layout.Orientation;
+			import org.alivepdf.layout.Size;
+			import org.alivepdf.layout.Unit;
+			import org.alivepdf.pages.Page;
+			import org.alivepdf.pdf.PDF;
+			import org.alivepdf.saving.Download;
+			import org.alivepdf.saving.Method;
+			
+			protected var claimPDF:PDF;
+			
+			[Bindable]
+			public var model : ModelLocator = ModelLocator.getInstance();
+			
+			[Bindable]
+			public var expAnnoArray : ArrayCollection = new ArrayCollection;
+
+			[Bindable]
+			public var estadoArray : XMLListCollection = new XMLListCollection;
+
+			public var Anno :int;
+			
+			public function init() : void
+			{
+				var i : int;
+				var today:Date= new Date();
+				// datos para combos Años				
+				expAnnoArray.addItem('Todos');
+				this.Anno = today.getFullYear();
+				for (i = this.Anno + 1; i > 2000; i--) {
+					expAnnoArray.addItem( i.toString() );
+				}
+				cmbExpAnno.selectedIndex = 2;
+				// datos para combo Estado
+				estadoArray.addItem( XML('<row><EstId>-1</EstId><Nombre>Todos</Nombre></row>') );
+				for (i = 0; i < model.estadosNombre.estadosNombreVO.datagridInfo.length; i++) {
+					estadoArray.addItem( model.estadosNombre.estadosNombreVO.datagridInfo[i] );
+				}
+				cmbEstado.selectedIndex = 0;
+			}	
+				
+			public function reporteReporteFacturasSearch() : void
+			{
+				var reporteFacturasVO : ReporteFacturasVO = new ReporteFacturasVO();
+				reporteFacturasVO.expAnno = cmbExpAnno.selectedItem;
+				reporteFacturasVO.estadoId = cmbEstado.selectedItem.EstId;
+				reporteFacturasVO.agenciaNombre = txtOperador.text;
+				reporteFacturasVO.porFecha = cbPorFecha.selected;
+				// set fecha String format yyy-mm-dd
+				var intDate:int;
+				var strDate:String;
+				var intMonth:int;
+				var strMonth:String;
+				intMonth = dfDesde.selectedDate.month + 1;
+				if (intMonth < 10){
+					strMonth = '0' + intMonth.toString();
+				} else {
+					strMonth = intMonth.toString();
+				}
+				intDate = dfDesde.selectedDate.date;
+				if (intDate < 10){
+					strDate = '0' + intDate.toString();
+				} else {
+					strDate = intDate.toString();
+				}
+				reporteFacturasVO.fechaDesde = dfDesde.selectedDate.fullYear + '-' + strMonth + '-' + strDate;
+				// fechaHasta
+				intMonth = dfHasta.selectedDate.month + 1;
+				if (intMonth < 10){
+					strMonth = '0' + intMonth.toString();
+				} else {
+					strMonth = intMonth.toString();
+				}
+				intDate = dfHasta.selectedDate.date;
+				if (intDate < 10){
+					strDate = '0' + intDate.toString();
+				} else {
+					strDate = intDate.toString();
+				}
+				reporteFacturasVO.fechaHasta = dfHasta.selectedDate.fullYear + '-' + strMonth + '-' + strDate + ' 23:59:59'; // to the end of the day
+				
+				model.reporteFacturas.reporteFacturasVO = reporteFacturasVO;
+				var event : ReporteFacturasEvent = new ReporteFacturasEvent( reporteFacturasVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+			}
+			
+			private function changePorFecha():void
+			{
+				if (cbPorFecha.selected){
+					cmbExpAnno.selectedIndex = 0;
+				} else {
+					cmbExpAnno.selectedIndex = 2;
+				}
+			}
+			
+			private function exportCSV(dg:DataGrid):void
+			{
+				var arrayTotals : Array = new Array();
+				arrayTotals.push("");
+				DataExporter.exportGridAndTotalsCSV(dg, arrayTotals);
+			}	
+			
+			// Sorts for the numeric columns
+			private function sortCompareNumericExpNum(itemA:Object, itemB:Object, gc:spark.components.gridClasses.GridColumn):int
+			{
+				return ObjectUtil.numericCompare(itemA.ExpNum,itemB.ExpNum);
+			}
+			
+			private function sortCompareNumericTotal(itemA:Object, itemB:Object, gc:spark.components.gridClasses.GridColumn):int
+			{
+				return ObjectUtil.numericCompare(itemA.Total,itemB.Total);
+			}
+			
+			private function sortCompareNumericTotalColones(itemA:Object, itemB:Object, gc:spark.components.gridClasses.GridColumn):int
+			{
+				return ObjectUtil.numericCompare(itemA.TotalColones,itemB.TotalColones);
+			}
+			
+			private function sortCompareNumericTipoCambio(itemA:Object, itemB:Object, gc:spark.components.gridClasses.GridColumn):int
+			{
+				return ObjectUtil.numericCompare(itemA.TipoCambio,itemB.TipoCambio);
+			}
+			private function sortCompareNumericFacNumId(itemA:Object, itemB:Object, gc:spark.components.gridClasses.GridColumn):int
+			{
+				return ObjectUtil.numericCompare(itemA.FacNumId,itemB.FacNumId);
+			}
+			
+			// Crea la Factura en PDF
+			protected function savePDF():void
+			{
+				claimPDF = new PDF(Orientation.PORTRAIT, Unit.MM, Size.LETTER);
+				claimPDF.setDisplayMode (Display.FULL_WIDTH); 
+				claimPDF.addPage();
+				
+				/* ****  HEADER  **** */
+				// logo image
+				//				claimPDF.addImageStream( new jpgBytes() as ByteArray, ColorSpace.DEVICE_RGB, null,10,10 );
+				
+				claimPDF.setFont(new CoreFont( FontFamily.ARIAL ), 10);
+				claimPDF.addText("Lista de Facturas",100,10);
+				
+				/* ****  BODY  **** */
+				
+				var acAllNodes:ArrayCollection;
+				
+				
+				//private function convertXmlListToArrayCollection():void
+				// convert XML to ArrayCollection
+				var strXML:String = datagrid.dataProvider.toArray().toString();
+				strXML = "<root>" + strXML + "</root>";
+				var xml:XML = new XML(strXML);
+				var xmlDoc:XMLDocument = new XMLDocument(xml);
+				var decoder:SimpleXMLDecoder = new SimpleXMLDecoder(true);
+				var resultObj:Object = decoder.decodeXML(xmlDoc);
+				acAllNodes = new ArrayCollection();
+				acAllNodes = resultObj.root.row;
+				// format numbers
+				var i : int;
+				var numberFormatter:NumberFormatter = new NumberFormatter();
+				numberFormatter.precision = 2;
+				numberFormatter.useThousandsSeparator="true"
+				numberFormatter.rounding = NumberBaseRoundType.NEAREST;
+				for (i = 0; i < acAllNodes.length; i++) {
+					acAllNodes[i].Total = numberFormatter.format(acAllNodes[i].Total);
+					acAllNodes[i].TipoCambio = numberFormatter.format(acAllNodes[i].TipoCambio);
+					acAllNodes[i].TotalColones = numberFormatter.format(acAllNodes[i].TotalColones);
+				}
+				
+				// create columns to specify the column order
+				var gridColumnExpAnno:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Año", "ExpAnno", 9, Align.CENTER, Align.CENTER);
+				var gridColumnExpNum:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Num", "ExpNum", 8, Align.CENTER, Align.CENTER);
+				var gridColumnAgencia:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Agencia", "AgNombre", 45, Align.CENTER, Align.LEFT);
+				var gridColumnPax:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Nombre Pax", "PaxNombre", 45, Align.CENTER, Align.LEFT);
+
+				var gridColumnFecha:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Fecha", "FechaString", 17, Align.CENTER, Align.RIGHT);
+				var gridColumnEstado:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Estado", "Estado", 13, Align.CENTER, Align.LEFT);
+				
+				var gridColumnTotal:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Total", "Total", 16, Align.CENTER, Align.RIGHT);
+				var gridColumnTotalColones:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Total c/.", "TotalColones", 20, Align.CENTER, Align.RIGHT);
+				var gridColumnTipoCambio:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("T.C.", "TipoCambio", 12, Align.CENTER, Align.RIGHT);
+				var gridColumnFacNum:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Fact #", "FacNumId", 12, Align.CENTER, Align.RIGHT);
+				
+				// create a columns Array
+				// it determines the order shown in the PDF
+				var columns:Array = new Array ( gridColumnFacNum, gridColumnExpAnno, gridColumnExpNum,  gridColumnFecha, gridColumnEstado,
+					gridColumnAgencia, gridColumnPax, gridColumnTotal, gridColumnTotalColones, gridColumnTipoCambio);
+				
+				// create a Grid object as usual
+				//var grid:Grid = new Grid( acAllNodes.toArray(), 200, 120, new RGBColor ( 0xCCCCCC ), new RGBColor (0xCCCCCC), true, new RGBColor(0x887711), .1, null, columns );
+				var grid:Grid = new Grid( acAllNodes.toArray(), 5, 0, new RGBColor ( 0x000000 ), new RGBColor (0x000000), false, new RGBColor(0x999999), 0.1, null, columns );
+				claimPDF.setFont(new CoreFont( FontFamily.ARIAL ), 8);
+				claimPDF.textStyle( new RGBColor(0x000000), 1 );
+				claimPDF.addGrid( grid, 0, 5 );
+				// totals
+				claimPDF.setFont(new CoreFont( FontFamily.ARIAL ), 10);
+				claimPDF.addMultiCell(165, 5, "Total $    " + model.reporteFacturas.reporteFacturasVO.sumTotalDolar + "           " + "Total c/.  " + model.reporteFacturas.reporteFacturasVO.sumTotalColones, 0, "R", 0);
+
+				/* ****  FOOTER  **** */
+				
+				// HERE IS HOW TO SAVE FROM FLASH PLAYER 10 OR GREATER. THIS IS USED FOR THIS SAMPLE.
+				var bytes:ByteArray = claimPDF.save(Method.LOCAL);
+				var f:FileReference = new FileReference();
+				f.save(bytes,"Lista Facturas_" + model.reporteFacturas.reporteFacturasVO.expAnno + ".pdf");
+				
+			}
+			
+			protected function savePDF_NO_PAX():void
+			{
+				claimPDF = new PDF(Orientation.PORTRAIT, Unit.MM, Size.LETTER);
+				claimPDF.setDisplayMode (Display.FULL_WIDTH); 
+				claimPDF.addPage();
+				
+				/* ****  HEADER  **** */
+				// logo image
+				//				claimPDF.addImageStream( new jpgBytes() as ByteArray, ColorSpace.DEVICE_RGB, null,10,10 );
+				
+				claimPDF.setFont(new CoreFont( FontFamily.ARIAL ), 10);
+				claimPDF.addText("Lista de Facturas",100,10);
+				
+				/* ****  BODY  **** */
+				
+				var acAllNodes:ArrayCollection;
+				
+				
+				//private function convertXmlListToArrayCollection():void
+				// convert XML to ArrayCollection
+				var strXML:String = datagrid.dataProvider.toArray().toString();
+				strXML = "<root>" + strXML + "</root>";
+				var xml:XML = new XML(strXML);
+				var xmlDoc:XMLDocument = new XMLDocument(xml);
+				var decoder:SimpleXMLDecoder = new SimpleXMLDecoder(true);
+				var resultObj:Object = decoder.decodeXML(xmlDoc);
+				acAllNodes = new ArrayCollection();
+				acAllNodes = resultObj.root.row;
+				// format numbers
+				var i : int;
+				var numberFormatter:NumberFormatter = new NumberFormatter();
+				numberFormatter.precision = 2;
+				numberFormatter.useThousandsSeparator="true"
+				numberFormatter.rounding = NumberBaseRoundType.NEAREST;
+				for (i = 0; i < acAllNodes.length; i++) {
+					acAllNodes[i].Total = numberFormatter.format(acAllNodes[i].Total);
+					acAllNodes[i].TipoCambio = numberFormatter.format(acAllNodes[i].TipoCambio);
+					acAllNodes[i].TotalColones = numberFormatter.format(acAllNodes[i].TotalColones);
+				}
+				// create columns to specify the column order
+				var gridColumnExpAnno:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Año", "ExpAnno", 9, Align.CENTER, Align.CENTER);
+				var gridColumnExpNum:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Num", "ExpNum", 8, Align.CENTER, Align.CENTER);
+				var gridColumnAgencia:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Agencia", "AgNombre", 60, Align.CENTER, Align.LEFT);
+				
+				var gridColumnFecha:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Fecha", "FechaString", 17, Align.CENTER, Align.RIGHT);
+				var gridColumnEstado:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Estado", "Estado", 13, Align.CENTER, Align.LEFT);
+				
+				var gridColumnTotal:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Total", "Total", 16, Align.CENTER, Align.RIGHT);
+				var gridColumnTotalColones:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Total c/.", "TotalColones", 20, Align.CENTER, Align.RIGHT);
+				var gridColumnTipoCambio:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("T.C.", "TipoCambio", 12, Align.CENTER, Align.RIGHT);
+				var gridColumnFacNum:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Fact #", "FacNumId", 12, Align.CENTER, Align.RIGHT);
+				
+				// create a columns Array
+				// it determines the order shown in the PDF
+				var columns:Array = new Array ( gridColumnFacNum, gridColumnExpAnno, gridColumnExpNum,  gridColumnFecha, gridColumnEstado,
+					gridColumnAgencia, gridColumnTotal, gridColumnTotalColones, gridColumnTipoCambio);
+				
+				// create a Grid object as usual
+				//var grid:Grid = new Grid( acAllNodes.toArray(), 200, 120, new RGBColor ( 0xCCCCCC ), new RGBColor (0xCCCCCC), true, new RGBColor(0x887711), .1, null, columns );
+				var grid:Grid = new Grid( acAllNodes.toArray(), 5, 0, new RGBColor ( 0x000000 ), new RGBColor (0x000000), false, new RGBColor(0x999999), 0.1, null, columns );
+				claimPDF.setFont(new CoreFont( FontFamily.ARIAL ), 8);
+				claimPDF.textStyle( new RGBColor(0x000000), 1 );
+				claimPDF.addGrid( grid, 0, 5 );
+				//totals
+				claimPDF.setFont(new CoreFont( FontFamily.ARIAL ), 10);
+				claimPDF.addMultiCell(165, 5, "Total $    " + model.reporteFacturas.reporteFacturasVO.sumTotalDolar + "           " + "Total c/.  " + model.reporteFacturas.reporteFacturasVO.sumTotalColones, 0, "R", 0);
+				
+				/* ****  FOOTER  **** */
+				
+				// HERE IS HOW TO SAVE FROM FLASH PLAYER 10 OR GREATER. THIS IS USED FOR THIS SAMPLE.
+				var bytes:ByteArray = claimPDF.save(Method.LOCAL);
+				var f:FileReference = new FileReference();
+				f.save(bytes,"Lista FacturasTotales_" + model.reporteFacturas.reporteFacturasVO.expAnno + ".pdf");
+				
+			}
+
+		]]>
+	</fx:Script>
+	
+	<s:Label x="11" y="10" text="Exp. Año"/>
+	<s:Label x="200.25" y="8.95" text="Agencia"/>
+	<s:DropDownList id="cmbExpAnno" x="11" y="22" width="71"
+				alternatingItemColors="[#F7F7F7, white]"
+				dataProvider="{expAnnoArray}"/>
+	<s:Label x="91" y="10" text="Estado"/>
+	<s:DropDownList id="cmbEstado" x="91" y="22" width="102"
+					alternatingItemColors="[#F7F7F7, white]"
+					labelField="Nombre"
+					dataProvider="{estadoArray}"/>
+	<s:TextInput id="txtOperador" x="200.6" y="21.65" width="242"
+				 typographicCase="uppercase"/>
+	<s:CheckBox x="459" y="24" id="cbPorFecha" 
+				change="changePorFecha()"
+				label="Por Fecha"/>
+	<s:Label x="541" y="10" text="Desde"
+			 enabled="{cbPorFecha.selected}"/>
+	<mx:DateField x="541" y="21" id="dfDesde"
+				  selectedDate="{new Date}"
+				  enabled="{cbPorFecha.selected}"/>
+	<s:Label x="641" y="10" text="Hasta"
+			 enabled="{cbPorFecha.selected}"/>
+	<mx:DateField x="641" y="21" id="dfHasta"
+				  selectedDate="{new Date}"
+				  enabled="{cbPorFecha.selected}"/>
+
+	
+	<s:Button x="758" y="20" label="Buscar"
+			  click="reporteReporteFacturasSearch()"/>
+	<s:Button x="841" y="25" label="PDF"
+			  enabled="{datagrid.dataProvider != null}" click="savePDF_NO_PAX()"/>
+	<s:Button x="841" y="1" label="PDF + PAX"
+			  enabled="{datagrid.dataProvider != null}" click="savePDF()"/>
+	<s:Button x="931" y="20" label="Exportar"
+			  enabled="{datagrid.dataProvider != null}" click="exportCSV(datagrid)"/>
+	
+	<s:DataGrid id="datagrid" x="10" y="50.35" width="992" height="496"
+				 verticalScrollPolicy="on"
+				 alternatingRowColors="[#F7F7F7, white]"
+				 dataProvider="{model.reporteFacturas.reporteFacturasVO.datagridInfo}">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn headerText="Fact #" minWidth="70"
+							  	   sortCompareFunction="sortCompareNumericFacNumId"
+								   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
+								   dataField="FacNumId"/>
+				<s:GridColumn headerText="Año" minWidth="45"
+							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
+								   dataField="ExpAnno"/>
+				<s:GridColumn headerText="Num" minWidth="55"
+								   sortCompareFunction="sortCompareNumericExpNum"
+								   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
+								   dataField="ExpNum"/>
+				<s:GridColumn headerText="Fecha" minWidth="75"
+								   dataField="FechaString"/>
+				<s:GridColumn headerText="Estado" minWidth="55"
+								   dataField="Estado"/>
+				<s:GridColumn headerText="Agencia" minWidth="225"
+								   dataField="AgNombre"/>
+				<s:GridColumn headerText="Nombre de Pasajeros" minWidth="225"
+								   dataField="PaxNombre"/>
+				<s:GridColumn headerText="Total $" minWidth="70"
+								   sortCompareFunction="sortCompareNumericTotal"
+								   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+								   dataField="TotalFormated"/>
+				<s:GridColumn headerText="Total c/." minWidth="90"
+								   sortCompareFunction="sortCompareNumericTotalColones"
+								   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+								   dataField="TotalColonesFormated"/>
+				<s:GridColumn headerText="T.C." minWidth="60"
+								   sortCompareFunction="sortCompareNumericTipoCambio"
+								   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
+								   dataField="TipoCambioFormated"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+	<s:Label x="761" y="555" width="70" textAlign="right" fontWeight="bold"
+			 text="{model.reporteFacturas.reporteFacturasVO.sumTotalDolar}" />
+	<s:Label x="835" y="555" width="87" textAlign="right" fontWeight="bold"
+			 text="{model.reporteFacturas.reporteFacturasVO.sumTotalColones}" />
+</s:Panel>

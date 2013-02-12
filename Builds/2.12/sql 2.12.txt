@@ -1,0 +1,19 @@
+ALTER TABLE [Factura] ADD Impreso int NOT NULL DEFAULT 0;
+
+
+
+update [Factura] set Impreso = 1;
+
+
+
+
+CREATE PROCEDURE [dbo].[mngsp_UpdateFacturaDetalleImpreso]
+@facNumId int
+
+AS
+set nocount on
+
+Update Factura set Impreso = 1
+where facNumId = @facNumId
+
+select '1' for xml raw, elements

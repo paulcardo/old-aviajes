@@ -1,0 +1,3 @@
+<Config>
+	<WebServiceWSDL>http://paul-pc/aviajes/aViajesWS/aViajesService.asmx?wsdl</WebServiceWSDL>
+</Config>
