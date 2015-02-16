@@ -1,0 +1,30 @@
+
+CREATE NONCLUSTERED INDEX [FK_Costo_Expediente]
+ON [dbo].[Costo] ([ExpAnno],[ExpNum])
+
+CREATE NONCLUSTERED INDEX [IX_Costo]
+ON [dbo].[Costo] ([AgntId])
+INCLUDE ([ExpAnno],[ExpNum],[OpId])
+
+CREATE NONCLUSTERED INDEX [FK_Costo_Factura]
+ON [dbo].[Costo] ([FacNumId])
+
+CREATE NONCLUSTERED INDEX [IX_Factura_EstId]
+ON [dbo].[Factura] ([EstId])
+INCLUDE ([FacNumId],[ExpAnno],[ExpNum],[Fecha],[PaxNombre],[Total],[TipoCambio],[AgNombre])
+
+CREATE NONCLUSTERED INDEX [IX_Voucher_EstId]
+ON [dbo].[Voucher] ([EstId])
+INCLUDE ([ExpAnno],[ExpNum],[PaxNombre],[ConfirmacionNum],[OpNombre])
+
+CREATE NONCLUSTERED INDEX [IX_Factura_ExpAnno]
+ON [dbo].[Factura] ([ExpAnno])
+INCLUDE ([FacNumId],[ExpNum],[Total],[TipoCambio])
+
+CREATE NONCLUSTERED INDEX [IX_Voucher_EstId_Rep]
+ON [dbo].[Voucher] ([EstId])
+INCLUDE ([VouId],[ExpAnno],[ExpNum],[Fecha],[PaxNombre],[PaxNum],[OpNombre])
+
+CREATE NONCLUSTERED INDEX [IX_Factura]
+ON [dbo].[Factura] ([ExpAnno],[ExpNum],[EstId])
+
