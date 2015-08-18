@@ -36,8 +36,9 @@
 			public var model :  ModelLocator = ModelLocator.getInstance();
 			
 			[Bindable]
-			public var version : String = "v.2.12";
+			public var version : String = "v.2.14";
 			/*
+				2.14	- Factura se puede editar luego de imprimir. Pide clave del administrador. Agregado boton [Edit]
 				2.12	- Factura no se puede modificar luego de imprimir, agregado nuevo campo Printed en tabla Factura, solo se puede anular
 				2.11	- Crear Factura, eliminado maximo de 999 para el valor del expediente
 				2.10	- Todos: cambiado los componentes mx:DataGrid por el nuevo spark:DataGrid

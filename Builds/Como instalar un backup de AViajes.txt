@@ -6,6 +6,15 @@ PASOS PARA PONER LA BASES DE DATOS "BACKUP"
 4) borrar el archivo AViajes_log.LDF  de ese directorio
 5) en sql 2005 ejecutar el query:  EXEC sp_attach_single_file_db @dbname = 'AViajes', @physname = 'C:\compartido\data\AViajes.mdf'
 
+Si NO funciona el "detatch":
+--------------------------
+The fix is to make the DB offline with ‘SET OFFLINE WITH ROLLBACK IMMEDIATE’ setting so that the DB will turn offline immediately and then Detach DB will work fine.  When you attach the DB you can make the DB Online.
+
+ALTER DATABASE <DBName> SET OFFLINE WITH ROLLBACK IMMEDIATE
+
+ALTER DATABASE [Database Name] SET ONLINE
+
+
 
 Instalar IIS en XP:
 2. From your Start Button, go to Settings, and Control Panel
@@ -17,3 +26,4 @@ Hacer update de todas las actualizaciones de windows
 
 1) copiar el backup con todo el contenido de C:\inetpub\wwwroot\aViajes  y subfolders
 2) revisar el nombre del servidor y el string de conexion
+

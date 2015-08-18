@@ -1,0 +1,15 @@
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[mngsp_UpdateFacturaDetalleImpreso]
+@facNumId int,
+@impreso int
+
+AS
+set nocount on
+
+Update Factura set Impreso = @impreso
+where facNumId = @facNumId
+
+select '1' for xml raw, elements

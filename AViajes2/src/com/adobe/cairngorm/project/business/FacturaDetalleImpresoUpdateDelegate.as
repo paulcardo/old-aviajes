@@ -19,7 +19,13 @@ package com.adobe.cairngorm.project.business
 		
 		public function facturaDetalleImpresoUpdate( facturaDetalleVO : FacturaDetalleVO ): void
 		{
-			var token : AsyncToken = service.UpdateFacturaDetalleImpreso(facturaDetalleVO.facNumId);
+			var numImpreso : Number;
+			if (facturaDetalleVO.impreso){
+				numImpreso = 1;
+			} else {
+				numImpreso = 0;
+			}
+			var token : AsyncToken = service.UpdateFacturaDetalleImpreso(facturaDetalleVO.facNumId, numImpreso);
 			token.addResponder(responder);
 		}
 	}

@@ -23,7 +23,7 @@ package com.adobe.cairngorm.project.vo
 		public var agntIndex : int = -1;
 		public var usrNombre : String;
 		public var usrIndex : int = -1;
-		public var impreso : Boolean;
+		public var impreso : Boolean = false;
 	}
 	
 }

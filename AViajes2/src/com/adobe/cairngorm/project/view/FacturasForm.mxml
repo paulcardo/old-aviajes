@@ -210,7 +210,6 @@
 				}
 			}
 			
-			
 			private function popupFacturaCostos():void
 			{
 				// no popup si no hay una factura seleccionada
@@ -233,15 +232,28 @@
 				}
 			}
 			
+			private function popupFacturaEditar():void
+			{
+				// no popup si no hay una factura seleccionada
+				if (datagrid.selectedIndex > -1){
+						var view2:FacturaClaveAdministradorForm = FacturaClaveAdministradorForm(PopUpManager.createPopUp(this, FacturaClaveAdministradorForm, true));
+						view2.accion = 'EditarFactura';
+						view2.facturaCostoDetalleVO_base.expAnno = model.facturaDetalle.facturaDetalleVO.expAnno;
+						view2.facturaCostoDetalleVO_base.expNum = model.facturaDetalle.facturaDetalleVO.expNum;
+						view2.facturaCostoDetalleVO_base.facNumId = model.facturaDetalle.facturaDetalleVO.facNumId;
+						PopUpManager.centerPopUp(view2);
+				}
+			}
+			
 			// Crea la Factura en PDF
 			protected function savePDF():void
 			{
 				// update DB code
 				if (!model.facturaDetalle.facturaDetalleVO.impreso){
-					var event : FacturaDetalleImpresoUpdateEvent = new FacturaDetalleImpresoUpdateEvent( model.facturaDetalle.facturaDetalleVO );
-					CairngormEventDispatcher.getInstance().dispatchEvent( event );
 					// marcar como Impreso
 					model.facturaDetalle.facturaDetalleVO.impreso = true;
+					var event : FacturaDetalleImpresoUpdateEvent = new FacturaDetalleImpresoUpdateEvent( model.facturaDetalle.facturaDetalleVO );
+					CairngormEventDispatcher.getInstance().dispatchEvent( event );
 				}
 				
 				// print code
@@ -579,6 +591,9 @@
 			  click="selectFactura()"/>
 	<s:Button id="btnImprimir" x="698" y="483" width="90" label="Imprimir" 
 			  click="savePDF()"/>
-	<s:Label visible="{model.facturaDetalle.facturaDetalleVO.impreso}" x="704" y="528" color="#FF0000"
+	<s:Button id="btnEditar" x="698" y="537" width="90" label="Editar" 
+			  visible="{model.facturaDetalle.facturaDetalleVO.impreso}"
+			  click="popupFacturaEditar()"/>
+	<s:Label visible="{model.facturaDetalle.facturaDetalleVO.impreso}" x="704" y="518" color="#FF0000"
 			 fontSize="18" fontWeight="bold" text="IMPRESO"/>
 </s:Panel>

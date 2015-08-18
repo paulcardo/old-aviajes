@@ -13,6 +13,7 @@
 		<![CDATA[  
 			import com.adobe.cairngorm.control.CairngormEventDispatcher;
 			import com.adobe.cairngorm.project.event.FacturaDetalleUpdateEvent;
+			import com.adobe.cairngorm.project.event.FacturaDetalleImpresoUpdateEvent;
 			import com.adobe.cairngorm.project.model.ModelLocator;
 			import com.adobe.cairngorm.project.vo.*;
 			
@@ -36,9 +37,20 @@
 					lblMensaje.text = 'Para anular una factura contacte al Administrador para que ingrese su Clave';
 				} else if ( (accion == 'CostosFactura') || (accion == 'CostosExpediente') ){
 					lblMensaje.text = 'Para agregar costos contacte al Administrador para que ingrese su Clave';
+				} else if (accion == 'EditarFactura'){
+					lblMensaje.text = 'Para editar una factura contacte al Administrador para que ingrese su Clave';
 				}
 				focusManager.setFocus(txtClaveAdministrador); // focus
 			}
+			private function editarFactura():void
+			{
+				// marcar como NO Impreso
+				model.facturaDetalle.facturaDetalleVO.impreso = false;
+				var event : FacturaDetalleImpresoUpdateEvent = new FacturaDetalleImpresoUpdateEvent( model.facturaDetalle.facturaDetalleVO );
+				CairngormEventDispatcher.getInstance().dispatchEvent( event );
+				PopUpManager.removePopUp(this);
+			}
+			
 			private function updateFactura():void
 			{
 				var event : FacturaDetalleUpdateEvent = new FacturaDetalleUpdateEvent( model.facturaDetalle.facturaDetalleVO );
@@ -82,6 +94,10 @@
 	<s:TextInput id="txtClaveAdministrador" x="24" y="48" width="232"
 				 displayAsPassword="true"/>
 	
+	<s:Button id="btnContinuar_EditarFactura" x="51" y="90" width="90" label="Continuar" 
+			  enabled="{model.claveAdministrador.claveAdministradorVO.claveActual == txtClaveAdministrador.text}"
+			  visible="{accion == 'EditarFactura'}"
+			  click="editarFactura()"/>
 	<s:Button id="btnContinuar_Anular" x="51" y="90" width="90" label="Continuar" 
 			  enabled="{model.claveAdministrador.claveAdministradorVO.claveActual == txtClaveAdministrador.text}"
 			  visible="{accion == 'Anular'}"
