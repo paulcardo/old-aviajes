@@ -392,7 +392,7 @@
 					<s:ArrayList>
 						<s:GridColumn headerText="Fact #" minWidth="60"
 										   sortCompareFunction="sortCompareNumeric"
-										   dataField="FacNumId"/>
+										   dataField="FacId"/>
 						<s:GridColumn headerText="Estado" minWidth="55"
 										   dataField="Estado"/>
 						<s:GridColumn headerText="Fecha" minWidth="75"

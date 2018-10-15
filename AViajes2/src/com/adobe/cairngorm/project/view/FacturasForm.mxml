@@ -104,6 +104,7 @@
 					var event : FacturaDetalleEvent = new FacturaDetalleEvent( facturaDetalleVO );
 					CairngormEventDispatcher.getInstance().dispatchEvent( event );
 					// assign
+					facturaDetalleVO.facId = datagrid.selectedItem.FacId;
 					facturaDetalleVO.expAnno = datagrid.selectedItem.ExpAnno;
 					facturaDetalleVO.expNum = datagrid.selectedItem.ExpNum;
 					// assign ExpAnno
@@ -147,6 +148,7 @@
 			{
 				var facturaDetalleVO : FacturaDetalleVO = new FacturaDetalleVO();
 				facturaDetalleVO.facNumId = txtDetalleFacNumId.text;
+				facturaDetalleVO.facId = txtDetalleFacId.value;
 				facturaDetalleVO.expAnno = cmbDetalleExpAnno.selectedItem;
 				facturaDetalleVO.expNum = txtDetalleExpNum.value;
 				facturaDetalleVO.estId = cmbDetalleEstado.selectedItem.EstId;
@@ -402,6 +404,11 @@
 			{
 				return ObjectUtil.numericCompare(itemA.FacNumId,itemB.FacNumId);
 			}
+			
+			private function sortCompareNumericFacId(itemA:Object, itemB:Object, gc:GridColumn):int 
+			{
+				return ObjectUtil.numericCompare(itemA.FacId,itemB.FacId);
+			}
 
 			private function sortCompareNumericTotal(itemA:Object, itemB:Object, gc:GridColumn):int 
 			{
@@ -453,14 +460,18 @@
 				 dataProvider="{model.facturas.facturasVO.datagridInfo}">
 		<s:columns>
 			<s:ArrayList>
-				<s:GridColumn headerText="Fact #" minWidth="60"
+				<s:GridColumn headerText="Fact #" width="0"
 							  sortCompareFunction="sortCompareNumericFacNumId"
 							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
 								dataField="FacNumId"/>
+				<s:GridColumn headerText="Fact #" minWidth="60"
+							  sortCompareFunction="sortCompareNumericFacId"
+							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
+							  dataField="FacId"/>
 				<s:GridColumn headerText="Año" minWidth="45"
 							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
 								   dataField="ExpAnno"/>
-				<s:GridColumn headerText="Exp Num" minWidth="65"
+				<s:GridColumn headerText="Exp Num" minWidth="63"
 								   sortCompareFunction="sortCompareNumericExpNum"
 								   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
 								   dataField="ExpNum"/>
@@ -468,7 +479,7 @@
 								   dataField="Estado"/>
 				<s:GridColumn headerText="Fecha" minWidth="75"
 								   dataField="FechaString"/>
-				<s:GridColumn headerText="Agencia" minWidth="200"
+				<s:GridColumn headerText="Agencia" minWidth="197"
 								   dataField="AgNombre"/>
 				<s:GridColumn headerText="Nombre de Pasajeros" minWidth="165"
 								   dataField="PaxNombre"/>
@@ -482,8 +493,14 @@
 	<mx:TabNavigator id="tabNavigator" x="10" y="322" width="680" height="245" selectedIndex="1">
 		<s:NavigatorContent label="Factura" width="100%" height="100%">
 			<s:Label x="8.65" y="10.3" text="Factura #"/>
-			<s:Label id="txtDetalleFacNumId" x="9" y="27" width="65"
+			<s:Label id="txtDetalleFacNumId" x="9" y="21" width="65"
 						 text="{model.facturaDetalle.facturaDetalleVO.facNumId}"/>
+			<s:NumericStepper id="txtDetalleFacId" x="9" y="21" width="70"
+							  stepSize="1"
+							  maximum="999999"
+							  valueParseFunction="myParseFunc"
+							  enabled="{!model.facturaDetalle.facturaDetalleVO.impreso}"
+							  value="{model.facturaDetalle.facturaDetalleVO.facId}"/>
 			<s:Label x="86" y="10" text="Año"/>
 			<s:DropDownList id="cmbDetalleExpAnno" x="86" y="22" width="66"
 						alternatingItemColors="[#F7F7F7, white]"

@@ -155,9 +155,9 @@
 			{
 				return ObjectUtil.numericCompare(itemA.TipoCambio,itemB.TipoCambio);
 			}
-			private function sortCompareNumericFacNumId(itemA:Object, itemB:Object, gc:spark.components.gridClasses.GridColumn):int
+			private function sortCompareNumericFacId(itemA:Object, itemB:Object, gc:spark.components.gridClasses.GridColumn):int
 			{
-				return ObjectUtil.numericCompare(itemA.FacNumId,itemB.FacNumId);
+				return ObjectUtil.numericCompare(itemA.FacId,itemB.FacId);
 			}
 			
 			// Crea la Factura en PDF
@@ -213,7 +213,7 @@
 				var gridColumnTotal:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Total", "Total", 16, Align.CENTER, Align.RIGHT);
 				var gridColumnTotalColones:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Total c/.", "TotalColones", 20, Align.CENTER, Align.RIGHT);
 				var gridColumnTipoCambio:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("T.C.", "TipoCambio", 12, Align.CENTER, Align.RIGHT);
-				var gridColumnFacNum:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Fact #", "FacNumId", 12, Align.CENTER, Align.RIGHT);
+				var gridColumnFacNum:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Fact #", "FacId", 12, Align.CENTER, Align.RIGHT);
 				
 				// create a columns Array
 				// it determines the order shown in the PDF
@@ -289,7 +289,7 @@
 				var gridColumnTotal:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Total", "Total", 16, Align.CENTER, Align.RIGHT);
 				var gridColumnTotalColones:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Total c/.", "TotalColones", 20, Align.CENTER, Align.RIGHT);
 				var gridColumnTipoCambio:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("T.C.", "TipoCambio", 12, Align.CENTER, Align.RIGHT);
-				var gridColumnFacNum:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Fact #", "FacNumId", 12, Align.CENTER, Align.RIGHT);
+				var gridColumnFacNum:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Fact #", "FacId", 12, Align.CENTER, Align.RIGHT);
 				
 				// create a columns Array
 				// it determines the order shown in the PDF
@@ -361,9 +361,9 @@
 		<s:columns>
 			<s:ArrayList>
 				<s:GridColumn headerText="Fact #" minWidth="70"
-							  	   sortCompareFunction="sortCompareNumericFacNumId"
+							  	   sortCompareFunction="sortCompareNumericFacId"
 								   itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
-								   dataField="FacNumId"/>
+								   dataField="FacId"/>
 				<s:GridColumn headerText="Año" minWidth="45"
 							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignCenter"
 								   dataField="ExpAnno"/>

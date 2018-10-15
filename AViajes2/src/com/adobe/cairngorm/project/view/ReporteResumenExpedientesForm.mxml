@@ -139,7 +139,7 @@
 				var gridColumnPax:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Nombre Pax", "PaxNombre", 42, Align.CENTER, Align.LEFT);
 				var gridColumnAgencia:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Agencia", "AgNombre", 35, Align.CENTER, Align.LEFT);
 				var gridColumnVouchers:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Vouchers", "ListaVouchers", 32, Align.CENTER, Align.LEFT);
-				var gridColumnFactura:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Factura", "FacNumId", 12, Align.CENTER, Align.RIGHT);
+				var gridColumnFactura:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Factura", "FacId", 12, Align.CENTER, Align.RIGHT);
 				var gridColumnImporte:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Importe", "Total", 16, Align.CENTER, Align.RIGHT);
 				var gridColumnTipoCambio:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("T.C.", "TipoCambio", 12, Align.CENTER, Align.RIGHT);
 				var gridColumnOpNombre:org.alivepdf.data.GridColumn = new org.alivepdf.data.GridColumn("Agente/Operador", "OpNombre", 35, Align.CENTER, Align.LEFT);
@@ -202,7 +202,7 @@
 								   dataField="ListaVouchers"/>
 				<s:GridColumn headerText="Fact #" minWidth="50"
 							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
-								   dataField="FacNumId"/>
+								   dataField="FacId"/>
 				<s:GridColumn headerText="Importe" minWidth="70"
 							  itemRenderer="com.adobe.cairngorm.project.components.DatagridAlignRight"
 								   dataField="Total"/>

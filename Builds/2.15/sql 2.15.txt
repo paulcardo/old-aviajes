@@ -1,0 +1,149 @@
+/********************************/
+Para la Factura Electronica
+---------------------------
+El numero de factura va a ser editable, para poder poner el numero qeu genere la aplicacion de factura Electronica
+
+Pasos:
+1. Para las facturas anteriores, que no tienen el valor en el campo "FacId": Poner el Numero de Factura "FacNumId" en el campo "FacId"
+2. En el form
+   a. buscar y leer de "FacId"
+   b. insertar en "facId"
+
+
+/***************    S C R I P T S    *****************/
+
+
+
+
+
+Update factura set facId = FacNumId where facId is null
+
+
+
+/****** Object:  StoredProcedure [dbo].[mngsp_GetReporteFacturasList]    Script Date: 10/15/2018 1:47:49 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+ALTER PROCEDURE [dbo].[mngsp_GetReporteFacturasList]
+@Query varchar(8000)
+
+ AS
+ set nocount on
+ 
+	DECLARE @MyQuery varchar(8000)
+	set @MyQuery = 'select E.FacNumId, E.FacId, E.ExpAnno, E.ExpNum, O.Nombre Estado, convert(char(10),[Fecha],121) FechaString, E.AgNombre, E.PaxNombre, E.Total, E.TipoCambio, E.Total * E.TipoCambio TotalColones
+from Factura E With (NoLock)
+JOIN Estado O With (NoLock) ON O.estId = E.estId
+ where (1=1)' 
++  @Query 
++ ' Order by E.FacNumId desc
+FOR XML RAW, ELEMENTS'
+	EXECUTE(@MyQuery)
+
+
+
+
+
+GO
+
+/****** Object:  StoredProcedure [dbo].[mngsp_UpdateFacturaDetalle]    Script Date: 10/15/2018 1:47:49 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+ALTER PROCEDURE [dbo].[mngsp_UpdateFacturaDetalle]
+@facNumId int,
+@facId int,
+@expAnno int,
+@expNum int,
+@fecha varchar(20),
+@estId int, 
+@total varchar(20),
+@tipoCambio varchar(20),
+@agNombre  varchar(30),
+@agntNombre varchar(50),
+@paxNombre varchar(50),
+@usrNombre varchar(50), 
+@detalle varchar(8000)
+
+
+ AS
+ set nocount on
+
+if @facNumId > 0
+begin
+	Update Factura
+	set 
+	facId = @facId,
+	ExpAnno = @ExpAnno,
+	ExpNum = @ExpNum,
+	fecha = @fecha,
+	estId = @estId,
+	total = @total,
+	tipoCambio = @tipoCambio,
+	agNombre = @agNombre,
+	agntNombre = @agntNombre,
+	paxNombre = @paxNombre,
+	usrNombre = @usrNombre,
+	descripcion = @detalle
+	where facNumId = @facNumId
+end
+else
+begin
+	insert into Factura ( facId, ExpAnno, ExpNum, fecha, estId, total, tipoCambio, agNombre, agntNombre, paxNombre, usrNombre, descripcion)
+	values (@facId, @ExpAnno, @ExpNum, @fecha, @estId, @total, @tipoCambio, @agNombre, @agntNombre, @paxNombre, @usrNombre, @detalle)
+
+	Select @facNumId = @@Identity
+end
+
+exec mngsp_GetFacturaDetalle @facNumId
+
+
+
+
+
+
+
+set ANSI_NULLS ON
+set QUOTED_IDENTIFIER ON
+
+GO
+
+/****** Object:  StoredProcedure [dbo].[mngsp_GetFacturasList]    Script Date: 10/15/2018 1:47:49 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+ALTER PROCEDURE [dbo].[mngsp_GetFacturasList]
+@Query varchar(8000)
+
+ AS
+ set nocount on
+ 
+	DECLARE @MyQuery varchar(8000)
+	set @MyQuery = 'select E.FacNumId, E.FacId, E.ExpAnno, E.ExpNum, O.Nombre Estado, convert(char(10),[Fecha],121) FechaString, E.AgNombre, E.PaxNombre, E.Total, E.TipoCambio
+from Factura E With (NoLock)
+JOIN Estado O With (NoLock) ON O.estId = E.estId
+ where (1=1)' 
++  @Query 
++ ' Order by E.FacNumId desc
+FOR XML RAW, ELEMENTS'
+	EXECUTE(@MyQuery)
+
+
+
+
+GO
+
+
+

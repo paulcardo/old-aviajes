@@ -19,7 +19,7 @@ package com.adobe.cairngorm.project.business
 		
 		public function facturaDetalleUpdate( facturaDetalleVO : FacturaDetalleVO ): void
 		{
-			var token : AsyncToken = service.UpdateFacturaDetalle( facturaDetalleVO.facNumId, facturaDetalleVO.expAnno, facturaDetalleVO.expNum, facturaDetalleVO.fechaString, facturaDetalleVO.estId, facturaDetalleVO.total, facturaDetalleVO.tipoCambio, facturaDetalleVO.agNombre, facturaDetalleVO.agntNombre, facturaDetalleVO.paxNombre, facturaDetalleVO.usrNombre, facturaDetalleVO.detalle );
+			var token : AsyncToken = service.UpdateFacturaDetalle( facturaDetalleVO.facNumId, facturaDetalleVO.facId, facturaDetalleVO.expAnno, facturaDetalleVO.expNum, facturaDetalleVO.fechaString, facturaDetalleVO.estId, facturaDetalleVO.total, facturaDetalleVO.tipoCambio, facturaDetalleVO.agNombre, facturaDetalleVO.agntNombre, facturaDetalleVO.paxNombre, facturaDetalleVO.usrNombre, facturaDetalleVO.detalle );
 			token.addResponder(responder);
 		}
 	}

@@ -22,7 +22,7 @@ package com.adobe.cairngorm.project.business
 			var Query:String = "";
 
 			if (facturasVO.facNumId != ""){
-				Query = Query + " AND E.facNumId = " + facturasVO.facNumId + " "
+				Query = Query + " AND E.facId = " + facturasVO.facNumId + " "
 			}
 			if (facturasVO.expAnno != "Todos"){
 				Query = Query + " AND E.ExpAnno = " + facturasVO.expAnno + " "

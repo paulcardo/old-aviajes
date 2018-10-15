@@ -8,6 +8,7 @@ package com.adobe.cairngorm.project.vo
 	public class FacturaDetalleVO implements ValueObject
 	{
 		public var facNumId : String = '';
+		public var facId : int;
 		public var expAnno : String;
 		public var expNum : int;
 		public var fecha : Date;
